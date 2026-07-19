@@ -28,8 +28,8 @@ Next.js (web) ──REST/JWT──► FastAPI (api)
 
 ## Status
 
-**Phase 0~16** — v1.0.0 released; **Phase 13–16** (Ollama / S3 / RAG / soft-tenant) complete  
-릴리즈: `CHANGELOG.md` · 게이트: `docs/RELEASE_GATE.md` · 다음 후보: erasure APIs (`docs/BACKLOG_POST_V1.md`)
+**Phase 0~17** — v1.0.0 released; **Phase 13–17** (Ollama / S3 / RAG / soft-tenant / erasure) complete  
+릴리즈: `CHANGELOG.md` · 게이트: `docs/RELEASE_GATE.md` · 다음 후보: dual-provider failover (`docs/BACKLOG_POST_V1.md`)
 
 ## Quick start
 

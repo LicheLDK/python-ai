@@ -9,6 +9,7 @@ from arq import cron
 from arq.connections import RedisSettings
 
 from app.core.config import settings
+from app.workers.erasure_jobs import run_erasure_job
 from app.workers.noop_jobs import noop_job
 from app.workers.ocr_jobs import run_ocr_job
 from app.workers.pipeline_jobs import run_pipeline
@@ -59,6 +60,7 @@ class WorkerSettings:
         noop_job,
         run_ocr_job,
         run_pipeline,
+        run_erasure_job,
         reconcile_stale_ocr_jobs,
         materialize_daily_stats,
     ]

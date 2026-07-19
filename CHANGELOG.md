@@ -4,6 +4,12 @@ All notable changes for AI SaaS Framework releases.
 
 ## [1.2.0] — 2026-07-19
 
+### Added — Phase 17 (Erasure)
+
+- **erasure_jobs** + ARQ `run_erasure_job`: hard-delete storage + documents (CASCADE), optional account anonymize
+- **API:** `DELETE /users/me/data`, `GET /users/me/erasure-jobs/{id}`, admin `POST/GET /admin/erasure-jobs`
+- **Policy:** audit logs retained; LLM provider logs out-of-band (local SoR only)
+
 ### Added — Phase 16 (Soft multi-tenant)
 
 - **organizations** table + `users.org_id` (Alembic `0012`; default org backfill)

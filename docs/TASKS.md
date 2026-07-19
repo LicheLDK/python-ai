@@ -390,6 +390,21 @@ T-0.01 → T-0.02 → T-0.03 → T-0.04 → T-0.05 → T-0.06 → T-0.07
 
 ---
 
+## Phase 17 — Erasure job APIs (P1)
+
+**Goal:** Account/document hard erasure behind async jobs (B-P1-ERASURE / SPIKE_DATA_RETENTION).  
+**Phase exit:** Self `DELETE /users/me/data` + admin erasure jobs; worker deletes storage + DB cascade; account anonymize.
+
+| ID | Task | Priority | Depends on | Deliverable | Exit criteria |
+| --- | --- | --- | --- | --- | --- |
+| **T-17.01** ✅ Done | `erasure_jobs` table + Alembic `0013` | High | T-1.01, T-3.01 | Model + migration | Status enum + scopes JSONB |
+| **T-17.02** ✅ Done | Repos: erasure job + document hard-delete + user anonymize | High | T-17.01 | Repository methods | Unit-testable |
+| **T-17.03** ✅ Done | `ErasureService` + self/admin APIs | High | T-17.02 | 202 Accepted enqueue | Conflict on active job |
+| **T-17.04** ✅ Done | `run_erasure_job` worker | High | T-17.03, T-4.02 | Storage delete + CASCADE + anonymize | Audit `erasure.completed` |
+| **T-17.05** ✅ Done | Docs: TASKS / usage / CHANGELOG / spike / backlog | Low | T-17.04 | Docs updated | Phase 17 marked Done |
+
+---
+
 ## 3. Priority Index
 
 ### 3.1 High Priority (Critical Path / P0)

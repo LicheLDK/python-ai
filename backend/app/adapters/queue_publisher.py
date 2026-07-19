@@ -15,6 +15,7 @@ from app.workers.settings import redis_settings_from_url
 NOOP_JOB_NAME = noop_job.__name__
 OCR_JOB_NAME = "run_ocr_job"
 PIPELINE_JOB_NAME = "run_pipeline"
+ERASURE_JOB_NAME = "run_erasure_job"
 
 
 class QueuePublisher:
@@ -66,4 +67,12 @@ class QueuePublisher:
             PIPELINE_JOB_NAME,
             run_id,
             _job_id=f"pipeline:{run_id}",
+        )
+
+    async def enqueue_erasure_job(self, job_id: str) -> Job | None:
+        """Enqueue erasure worker handler (T-17.04)."""
+        return await self.enqueue(
+            ERASURE_JOB_NAME,
+            job_id,
+            _job_id=f"erasure:{job_id}",
         )

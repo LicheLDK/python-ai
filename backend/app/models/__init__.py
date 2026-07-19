@@ -14,6 +14,7 @@ from app.models.ai import (
 from app.models.audit import AuditLog
 from app.models.base import Base
 from app.models.document import Document, DocumentStatus
+from app.models.erasure import ErasureJob, ErasureJobStatus
 from app.models.ocr import OcrJob, OcrJobStatus, OcrResult
 from app.models.organization import Organization, OrganizationStatus
 from app.models.permission import Permission, RolePermission
@@ -35,6 +36,8 @@ __all__ = [
     "Document",
     "DocumentChunk",
     "DocumentStatus",
+    "ErasureJob",
+    "ErasureJobStatus",
     "OcrJob",
     "OcrJobStatus",
     "OcrResult",

@@ -11,7 +11,7 @@ Imported from [PRD §5.3 Future Candidates](PRD.md#53-future-candidates-post-v1)
 | B-LATER-K8S | Later | K8s Helm charts | PRD Non-Goal for v1 |
 | B-LATER-EVENT | Later | Event-driven pipeline bus | Beyond ARQ queue |
 | B-P1-S3 | P1+ | Object storage (S3-compatible) behind `StoragePort` | **Phase 14 Done** — `S3StorageAdapter` + factory + MinIO profile |
-| B-P1-ERASURE | P1+ | Account/document erasure APIs | [SPIKE_DATA_RETENTION.md](SPIKE_DATA_RETENTION.md) |
+| B-P1-ERASURE | P1+ | Account/document erasure APIs | **Phase 17 Done** — async erasure_jobs + self/admin APIs; audit retained |
 | B-P1-FALLBACK | P1+ | Dual-provider automatic failover | Flag exists; harden ops alerts |
 
 ## Suggested next implementation order
@@ -20,6 +20,6 @@ Imported from [PRD §5.3 Future Candidates](PRD.md#53-future-candidates-post-v1)
 2. ~~S3 storage adapter (same `StoragePort`)~~ → **Done (Phase 14)**  
 3. ~~RAG minimal interface + one store~~ → **Done (Phase 15)**  
 4. ~~Soft tenant + org quota~~ → **Done (Phase 16)**  
-5. Erasure job APIs  
+5. ~~Erasure job APIs~~ → **Done (Phase 17)**  
 
-Track new work as TASKS IDs under a future Phase 17+ section when scheduling starts.
+Track new work as TASKS IDs under a future Phase 18+ section when scheduling starts.

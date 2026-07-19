@@ -1,7 +1,7 @@
 # AI SaaS Framework — 사용법 (usage)
 
 구현 진행에 맞춰 이 문서를 갱신합니다.  
-현재 반영 범위: … **Phase 16 complete** (T-16.01 ~ T-16.07 — soft multi-tenant) · Phase 15 RAG · Phase 14 S3 · Phase 13 Ollama · Phase 12 = v1.0.0 ready
+현재 반영 범위: … **Phase 17 complete** (T-17.01 ~ T-17.05 — erasure jobs) · Phase 16 soft-tenant · Phase 15 RAG · Phase 14 S3 · Phase 13 Ollama · Phase 12 = v1.0.0 ready
 
 관련 명세: [docs/PRD.md](docs/PRD.md) · [docs/SDS.md](docs/SDS.md) · [docs/TASKS.md](docs/TASKS.md)
 
@@ -776,6 +776,27 @@ python -m pytest app/tests/unit/test_organization.py -v
 ```
 
 Org AI quota가 설정되면 user 한도와 함께 이중 적용됩니다 (`scope=organization` 429).
+
+### Erasure jobs (T-17.01 ~ T-17.04)
+
+문서 storage hard-delete + DB CASCADE, 계정은 익명화+inactive. Audit 로그는 보존. LLM 벤더 로그는 범위 밖(로컬 SoR만).
+
+```powershell
+cd backend
+python -m alembic upgrade head   # 0013 erasure_jobs
+python -m pytest app/tests/unit/test_erasure.py -v
+
+# Self-service (202 Accepted)
+# DELETE /api/v1/users/me/data
+# GET    /api/v1/users/me/erasure-jobs/{job_id}
+
+# Admin
+# POST /api/v1/admin/erasure-jobs  {"user_id":"...","scopes":["documents"]}
+# POST /api/v1/admin/erasure-jobs  {"user_id":"...","scopes":["account"]}
+# GET  /api/v1/admin/erasure-jobs/{job_id}
+```
+
+Worker에 `run_erasure_job`이 등록되어 있어야 합니다 (`arq app.workers.settings.WorkerSettings`).
 
 ### LLM factory (T-5.04 / T-13.03)
 

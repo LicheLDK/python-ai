@@ -105,3 +105,14 @@ class UserRepository:
             user.org_id = org_id
         self._session.flush()
         return user
+
+    def anonymize_and_deactivate(self, user: User) -> User:
+        """GDPR-style local SoR erase — keep row for FK/audit history."""
+        from app.core.security import hash_password
+
+        user.email = f"erased+{user.id}@erased.local"
+        user.name = "Erased User"
+        user.status = UserStatus.inactive
+        user.password_hash = hash_password(f"erased-{user.id}-{uuid.uuid4().hex}")
+        self._session.flush()
+        return user

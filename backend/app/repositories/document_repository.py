@@ -76,3 +76,16 @@ class DocumentRepository:
         document.status = DocumentStatus.deleted
         self._session.flush()
         return document
+
+    def list_all_for_owner(self, owner_id: uuid.UUID) -> list[Document]:
+        """All documents for owner including soft-deleted (erasure)."""
+        stmt = (
+            select(Document)
+            .where(Document.owner_id == owner_id)
+            .order_by(Document.created_at.asc())
+        )
+        return list(self._session.scalars(stmt).all())
+
+    def hard_delete(self, document: Document) -> None:
+        self._session.delete(document)
+        self._session.flush()
