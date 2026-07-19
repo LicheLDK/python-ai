@@ -3,12 +3,20 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
-.env
-.env.staging
 *.egg-info/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+# Secrets / local env (never commit real keys)
+.env
+.env.*
+!.env.example
+!.env.staging.example
+*.pem
+*.key
+credentials.json
+secrets/
 
 # Node / Next
 frontend/node_modules/
@@ -21,14 +29,15 @@ frontend/out/
 .DS_Store
 Thumbs.db
 
-# Storage / local data
+# Storage / local data / uploads
 data/
 *.log
 
-# Docker
+# Docker local volumes
 pgdata/
 
 # Local scratch
 __temp__.txt
+__temp__/
 __gate_results.json
-
+*.bak
