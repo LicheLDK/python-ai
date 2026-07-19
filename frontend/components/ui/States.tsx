@@ -1,60 +1,51 @@
 "use client";
 
-import type { CSSProperties, ReactNode } from "react";
-
-const box: CSSProperties = {
-  padding: "1.25rem",
-  borderRadius: 8,
-  border: "1px solid #e5e7eb",
-  background: "#f9fafb",
-  color: "#4b5563",
-  textAlign: "center",
-};
+import type { ReactNode } from "react";
+import { cn } from "@/lib/cn";
 
 export function LoadingState({ label = "불러오는 중…" }: { label?: string }) {
-  return <div style={box}>{label}</div>;
+  return (
+    <div className="rounded-2xl border border-border bg-white px-6 py-10 text-center text-sm text-muted shadow-[var(--shadow-card)]">
+      <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-brand/20 border-t-brand" />
+      {label}
+    </div>
+  );
 }
 
 export function EmptyState({ children }: { children: ReactNode }) {
-  return <div style={box}>{children}</div>;
+  return (
+    <div className="rounded-2xl border border-dashed border-border bg-slate-50/80 px-6 py-10 text-center text-sm text-muted">
+      {children}
+    </div>
+  );
 }
 
 export function ErrorState({ message }: { message: string }) {
   return (
-    <div
-      style={{
-        ...box,
-        borderColor: "#fecaca",
-        background: "#fef2f2",
-        color: "#991b1b",
-      }}
-    >
+    <div className="rounded-2xl border border-red-200 bg-danger-soft px-4 py-3 text-sm font-medium text-red-800">
       {message}
     </div>
   );
 }
 
 export function StatusBadge({ status }: { status: string }) {
-  const color =
-    status === "succeeded" || status === "active"
-      ? "#166534"
+  const tone =
+    status === "succeeded" || status === "active" || status === "uploaded"
+      ? "bg-success-soft text-success"
       : status === "failed" || status === "cancelled"
-        ? "#991b1b"
+        ? "bg-danger-soft text-danger"
         : status === "running" || status === "queued"
-          ? "#1d4ed8"
-          : "#4b5563";
+          ? "bg-brand-soft text-brand"
+          : "bg-slate-100 text-slate-600";
+
   return (
     <span
-      style={{
-        display: "inline-block",
-        padding: "0.15rem 0.5rem",
-        borderRadius: 999,
-        fontSize: "0.75rem",
-        fontWeight: 600,
-        background: `${color}18`,
-        color,
-      }}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold",
+        tone,
+      )}
     >
+      <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />
       {status}
     </span>
   );

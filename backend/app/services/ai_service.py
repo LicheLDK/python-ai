@@ -24,6 +24,7 @@ from app.adapters.ports import (
 )
 from app.core.config import Settings, settings
 from app.core.constants import (
+    REDIS_KEY_AI_RATE_ORG,
     REDIS_KEY_AI_RATE_USER,
 )
 from app.core.redis import get_redis
@@ -50,7 +51,9 @@ from app.repositories.ai_usage_repository import AiUsageRepository
 from app.repositories.document_repository import DocumentRepository
 from app.repositories.ocr_job_repository import OcrJobRepository
 from app.repositories.ocr_result_repository import OcrResultRepository
+from app.repositories.organization_repository import OrganizationRepository
 from app.services.prompt_service import PromptService
+from app.services.rag_service import RagCitation, RagService
 
 _IMAGE_MIMES = frozenset({"image/jpeg", "image/png", "image/webp"})
 
@@ -69,6 +72,7 @@ class AiService:
         storage: StoragePort | None = None,
         llm_factory: LlmFactory | None = None,
         redis_client: redis.Redis | None = None,
+        rag: RagService | None = None,
         cfg: Settings | None = None,
     ) -> None:
         self._session = session
@@ -82,6 +86,7 @@ class AiService:
         self._llm_factory = llm_factory or get_llm_factory()
         self._redis = redis_client if redis_client is not None else get_redis()
         self._settings = cfg or settings
+        self._rag = rag or RagService(session, cfg=self._settings)
 
     def chat(
         self,
@@ -95,16 +100,45 @@ class AiService:
         model: str | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
-    ) -> tuple[AiRequest, AiUsage, ChatResult]:
-        self._assert_ai_rate_limit(actor.id)
+        document_ids: list[uuid.UUID] | None = None,
+        top_k: int | None = None,
+    ) -> tuple[AiRequest, AiUsage, ChatResult, list[RagCitation]]:
+        self._assert_ai_rate_limit(actor)
         prompt = self._prompts.resolve(name=prompt_name, version=prompt_version)
         chat_messages = self._build_chat_messages(
             messages=messages,
             prompt=prompt,
             variables=variables,
         )
+
+        citations: list[RagCitation] = []
+        if document_ids:
+            query = self._last_user_content(messages)
+            citations = self._rag.retrieve(
+                actor=actor,
+                query=query,
+                document_ids=document_ids,
+                top_k=top_k,
+            )
+            context = self._rag.build_context(citations)
+            if context:
+                chat_messages = [
+                    ChatMessage(role="system", content=context),
+                    *chat_messages,
+                ]
+
         llm = self._resolve_llm(provider)
         params = LlmChatParams(model=model, temperature=temperature, max_tokens=max_tokens)
+        input_ref: dict[str, Any] = {
+            "messages": messages,
+            "prompt_name": prompt_name,
+            "prompt_version": prompt_version,
+        }
+        if document_ids:
+            input_ref["document_ids"] = [str(d) for d in document_ids]
+            input_ref["top_k"] = top_k
+            input_ref["rag"] = True
+
         try:
             result = llm.chat(chat_messages, params)
         except (ProviderError, RateLimitError, ValidationAppError):
@@ -114,34 +148,30 @@ class AiService:
                 model=model or "unknown",
                 request_type=AiRequestType.chat,
                 prompt_id=prompt.id if prompt else None,
-                input_ref={
-                    "messages": messages,
-                    "prompt_name": prompt_name,
-                    "prompt_version": prompt_version,
-                },
+                input_ref=input_ref,
                 error="provider_or_validation_error",
             )
             raise
 
-        self._bump_ai_rate_limit(actor.id)
+        self._bump_ai_rate_limit(actor)
+        output_ref: dict[str, Any] = {
+            "role": result.message.role,
+            "content": result.message.content,
+        }
+        if citations:
+            output_ref["citations"] = self._rag.citations_as_dicts(citations)
+
         req, usage = self._persist_success(
             actor=actor,
             provider_name=result.provider,
             model=result.model,
             request_type=AiRequestType.chat,
             prompt_id=prompt.id if prompt else None,
-            input_ref={
-                "messages": messages,
-                "prompt_name": prompt_name,
-                "prompt_version": prompt_version,
-            },
-            output_ref={
-                "role": result.message.role,
-                "content": result.message.content,
-            },
+            input_ref=input_ref,
+            output_ref=output_ref,
             stats=result.usage,
         )
-        return req, usage, result
+        return req, usage, result, citations
 
     def chat_stream(
         self,
@@ -155,10 +185,12 @@ class AiService:
         model: str | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        document_ids: list[uuid.UUID] | None = None,
+        top_k: int | None = None,
         chunk_size: int = 24,
     ) -> Iterator[str]:
         """SSE event lines after a full provider chat (pseudo-stream; T-5.08)."""
-        req, usage, result = self.chat(
+        req, usage, result, citations = self.chat(
             actor=actor,
             messages=messages,
             prompt_name=prompt_name,
@@ -168,6 +200,8 @@ class AiService:
             model=model,
             temperature=temperature,
             max_tokens=max_tokens,
+            document_ids=document_ids,
+            top_k=top_k,
         )
         yield self._sse(
             "meta",
@@ -175,6 +209,7 @@ class AiService:
                 "request_id": str(req.id),
                 "provider": result.provider,
                 "model": result.model,
+                "citations": self._rag.citations_as_dicts(citations),
             },
         )
         content = result.message.content or ""
@@ -209,7 +244,7 @@ class AiService:
         temperature: float | None = None,
         max_tokens: int | None = None,
     ) -> tuple[AiRequest, AiUsage, VisionResult]:
-        self._assert_ai_rate_limit(actor.id)
+        self._assert_ai_rate_limit(actor)
         if not any((document_id, ocr_job_id, image_document_id)):
             raise ValidationAppError(
                 "At least one of document_id, ocr_job_id, image_document_id is required"
@@ -251,7 +286,7 @@ class AiService:
             )
             raise
 
-        self._bump_ai_rate_limit(actor.id)
+        self._bump_ai_rate_limit(actor)
         req, usage = self._persist_success(
             actor=actor,
             provider_name=result.provider,
@@ -441,25 +476,61 @@ class AiService:
         except Exception:  # noqa: BLE001 — never mask original provider error
             self._session.rollback()
 
-    def _assert_ai_rate_limit(self, user_id: uuid.UUID) -> None:
-        max_req = int(self._settings.ai_rate_limit_max)
-        key = REDIS_KEY_AI_RATE_USER.format(user_id=str(user_id))
-        raw = self._redis.get(key)
-        if raw is not None and int(raw) >= max_req:
+    def _assert_ai_rate_limit(self, actor: User) -> None:
+        user_max = int(self._settings.ai_rate_limit_max)
+        user_key = REDIS_KEY_AI_RATE_USER.format(user_id=str(actor.id))
+        user_raw = self._redis.get(user_key)
+        if user_raw is not None and int(user_raw) >= user_max:
             raise RateLimitError(
                 "AI rate limit exceeded. Try again later.",
                 details={
-                    "limit": max_req,
+                    "scope": "user",
+                    "limit": user_max,
                     "window_seconds": int(self._settings.ai_rate_limit_window_seconds),
                 },
             )
 
-    def _bump_ai_rate_limit(self, user_id: uuid.UUID) -> None:
-        window = int(self._settings.ai_rate_limit_window_seconds)
-        key = REDIS_KEY_AI_RATE_USER.format(user_id=str(user_id))
-        count = self._redis.incr(key)
-        if count == 1:
-            self._redis.expire(key, window)
+        org = OrganizationRepository(self._session).get_by_id(actor.org_id)
+        org_max = (
+            int(org.ai_rate_limit_max)
+            if org is not None and org.ai_rate_limit_max is not None
+            else user_max
+        )
+        org_window = (
+            int(org.ai_rate_limit_window_seconds)
+            if org is not None and org.ai_rate_limit_window_seconds is not None
+            else int(self._settings.ai_rate_limit_window_seconds)
+        )
+        org_key = REDIS_KEY_AI_RATE_ORG.format(org_id=str(actor.org_id))
+        org_raw = self._redis.get(org_key)
+        if org_raw is not None and int(org_raw) >= org_max:
+            raise RateLimitError(
+                "Organization AI rate limit exceeded. Try again later.",
+                details={
+                    "scope": "organization",
+                    "org_id": str(actor.org_id),
+                    "limit": org_max,
+                    "window_seconds": org_window,
+                },
+            )
+
+    def _bump_ai_rate_limit(self, actor: User) -> None:
+        user_window = int(self._settings.ai_rate_limit_window_seconds)
+        user_key = REDIS_KEY_AI_RATE_USER.format(user_id=str(actor.id))
+        user_count = self._redis.incr(user_key)
+        if user_count == 1:
+            self._redis.expire(user_key, user_window)
+
+        org = OrganizationRepository(self._session).get_by_id(actor.org_id)
+        org_window = (
+            int(org.ai_rate_limit_window_seconds)
+            if org is not None and org.ai_rate_limit_window_seconds is not None
+            else user_window
+        )
+        org_key = REDIS_KEY_AI_RATE_ORG.format(org_id=str(actor.org_id))
+        org_count = self._redis.incr(org_key)
+        if org_count == 1:
+            self._redis.expire(org_key, org_window)
 
     @staticmethod
     def _to_provider(name: str) -> AiProvider:
@@ -474,6 +545,13 @@ class AiService:
     def _is_admin(user: User) -> bool:
         role = user.role.value if isinstance(user.role, UserRole) else str(user.role)
         return role == UserRole.admin.value
+
+    @staticmethod
+    def _last_user_content(messages: list[dict[str, str]]) -> str:
+        for msg in reversed(messages):
+            if (msg.get("role") or "").lower() == "user":
+                return (msg.get("content") or "").strip()
+        return (messages[-1].get("content") if messages else "") or ""
 
     @staticmethod
     def _sse(event: str, data: dict[str, Any]) -> str:

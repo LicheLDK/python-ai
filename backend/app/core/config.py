@@ -52,7 +52,35 @@ class Settings(BaseSettings):
         description="AI rate-limit window seconds",
     )
 
+    # Ollama local LLM (T-13.01)
+    ollama_base_url: str = Field(
+        default="http://localhost:11434",
+        description="Ollama HTTP base URL (no trailing slash)",
+    )
+    ollama_chat_model: str = Field(default="llama3.2")
+    ollama_vision_model: str = Field(default="llava")
+    ollama_timeout_seconds: float = Field(
+        default=120.0,
+        description="Ollama HTTP timeout seconds (local models can be slow)",
+    )
+
     storage_path: str = Field(default="/data/storage")
+    storage_backend: str = Field(
+        default="local",
+        description="StoragePort backend: local | s3 (T-14.02)",
+    )
+    s3_endpoint_url: str = Field(
+        default="",
+        description="S3/MinIO endpoint (empty = AWS default)",
+    )
+    s3_access_key_id: str = Field(default="")
+    s3_secret_access_key: str = Field(default="")
+    s3_bucket: str = Field(default="")
+    s3_region: str = Field(default="us-east-1")
+    s3_force_path_style: bool = Field(
+        default=True,
+        description="Path-style addressing (required for most MinIO setups)",
+    )
 
     ocr_lang: str = Field(default="korean+en")
     ocr_max_pages: int = Field(default=20)
@@ -85,6 +113,26 @@ class Settings(BaseSettings):
     stats_summary_cache_seconds: int = Field(
         default=300,
         description="Redis TTL for /stats/summary cache (T-7.05)",
+    )
+
+    # RAG (T-15.01+) — embeddings store + retrieval
+    embedding_provider: str = Field(
+        default="openai",
+        description="EmbeddingPort backend: openai | hash",
+    )
+    embedding_model: str = Field(default="text-embedding-3-small")
+    embedding_dimensions: int = Field(
+        default=1536,
+        description="Vector size (hash adapter often uses 64)",
+    )
+    rag_chunk_size: int = Field(default=800, description="Character chunk window")
+    rag_chunk_overlap: int = Field(default=120, description="Chunk overlap chars")
+    rag_top_k: int = Field(default=5, description="Default retrieve top-k")
+
+    # Soft multi-tenant (T-16.01+)
+    default_org_name: str = Field(
+        default="Default Organization",
+        description="Name used when ensuring the default org on register/seed",
     )
 
     next_public_api_base_url: str = Field(default="http://localhost:8000")

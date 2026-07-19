@@ -2,6 +2,42 @@
 
 All notable changes for AI SaaS Framework releases.
 
+## [1.2.0] — 2026-07-19
+
+### Added — Phase 16 (Soft multi-tenant)
+
+- **organizations** table + `users.org_id` (Alembic `0012`; default org backfill)
+- **API:** `GET/PATCH /api/v1/orgs/me`, admin `GET/POST/PATCH /api/v1/admin/orgs`
+- **Quota:** org AI rate limit overrides (Redis `aisaas:rl:ai:org:{org_id}`) alongside per-user limits
+- **Branding:** JSONB bag on org (API-ready; UI deferred)
+
+## [1.1.0] — 2026-07-19
+
+### Added — Phase 15 (RAG)
+
+- **EmbeddingPort:** OpenAI (`text-embedding-3-small`) + offline `hash` adapter
+- **Store:** `document_chunks` (JSONB embeddings; no external vector DB)
+- **API:** `POST /api/v1/rag/index`, `POST /api/v1/rag/search`
+- **Chat citations:** `document_ids` / `top_k` on `/ai/chat` injects retrieved context
+
+### Added — Phase 14 (S3 Storage)
+
+- **S3StorageAdapter:** S3/MinIO via boto3 behind `StoragePort` (same key layout as local)
+- **Factory:** `get_storage()` selects `local` | `s3` via `STORAGE_BACKEND` (default `local`)
+- **Compose:** optional `minio` + `minio-init` profile; `S3_*` env contract
+
+### Added — Phase 13 (Ollama)
+
+- **OllamaAdapter:** local LLM via Ollama HTTP (`/api/chat`, `/api/tags`); chat + vision (llava)
+- **Factory:** `ollama` in `SUPPORTED_PROVIDERS`; request `provider: "ollama"`
+- **Schema:** Alembic `0010` adds `ollama` to `ai_provider` enum
+- **Compose:** optional `ollama` profile + `OLLAMA_*` env contract
+
+### Notes
+
+- Default models: chat `llama3.2`, vision `llava` (pull before first use)
+- Cost estimate for Ollama is `0` (local)
+
 ## [1.0.0] — 2026-07-19
 
 ### Added — Phases 0–12

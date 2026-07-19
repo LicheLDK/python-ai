@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState } from "react";
+import { Activity, Bot, ScanText, Users } from "lucide-react";
+import { Card } from "@/components/ui/Card";
 import {
   EmptyState,
   ErrorState,
@@ -11,13 +13,33 @@ import { ApiError } from "@/services/http";
 import * as adminApi from "@/services/admin";
 import type { AdminDashboard } from "@/types";
 
-const card: CSSProperties = {
-  background: "#fff",
-  borderRadius: 10,
-  border: "1px solid #e5e7eb",
-  padding: "1rem 1.1rem",
-  minWidth: 140,
-};
+function Kpi({
+  label,
+  value,
+  icon: Icon,
+  tone,
+}: {
+  label: string;
+  value: string | number;
+  icon: typeof Users;
+  tone: string;
+}) {
+  return (
+    <Card className="p-4">
+      <div className="flex items-start gap-3">
+        <div
+          className={`flex h-10 w-10 items-center justify-center rounded-xl ${tone}`}
+        >
+          <Icon className="h-5 w-5" />
+        </div>
+        <div>
+          <div className="text-xs font-medium text-muted">{label}</div>
+          <div className="mt-1 text-2xl font-bold tracking-tight">{value}</div>
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 export function AdminDashboardView() {
   const [data, setData] = useState<AdminDashboard | null>(null);
@@ -66,81 +88,57 @@ export function AdminDashboardView() {
   ];
 
   return (
-    <div style={{ display: "grid", gap: "1.25rem" }}>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-          gap: "0.75rem",
-        }}
-      >
-        <div style={card}>
-          <div style={{ fontSize: "0.8rem", color: "#6b7280" }}>Users</div>
-          <div style={{ fontSize: "1.6rem", fontWeight: 700 }}>
-            {data.users_total}
-          </div>
-        </div>
-        <div style={card}>
-          <div style={{ fontSize: "0.8rem", color: "#6b7280" }}>
-            OCR (24h)
-          </div>
-          <div style={{ fontSize: "1.6rem", fontWeight: 700 }}>
-            {data.ocr_jobs_24h}
-          </div>
-        </div>
-        <div style={card}>
-          <div style={{ fontSize: "0.8rem", color: "#6b7280" }}>
-            AI (24h)
-          </div>
-          <div style={{ fontSize: "1.6rem", fontWeight: 700 }}>
-            {data.ai_requests_24h}
-          </div>
-        </div>
-        <div style={card}>
-          <div style={{ fontSize: "0.8rem", color: "#6b7280" }}>
-            Error rate (24h)
-          </div>
-          <div style={{ fontSize: "1.6rem", fontWeight: 700 }}>
-            {(data.error_rate_24h * 100).toFixed(1)}%
-          </div>
-        </div>
+    <div className="grid gap-5">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Kpi
+          label="Users"
+          value={data.users_total}
+          icon={Users}
+          tone="bg-indigo-50 text-indigo-600"
+        />
+        <Kpi
+          label="OCR 24h"
+          value={data.ocr_jobs_24h}
+          icon={ScanText}
+          tone="bg-violet-50 text-violet-600"
+        />
+        <Kpi
+          label="AI 24h"
+          value={data.ai_requests_24h}
+          icon={Bot}
+          tone="bg-sky-50 text-sky-600"
+        />
+        <Kpi
+          label="Error rate 24h"
+          value={`${(data.error_rate_24h * 100).toFixed(1)}%`}
+          icon={Activity}
+          tone="bg-emerald-50 text-emerald-600"
+        />
       </div>
 
-      <section
-        style={{
-          background: "#fff",
-          borderRadius: 10,
-          border: "1px solid #e5e7eb",
-        }}
-      >
-        <h2 style={{ margin: "1rem 1rem 0", fontSize: "1.05rem" }}>
+      <Card>
+        <h2 className="m-0 border-b border-border px-5 py-4 text-base font-semibold">
           Top users (24h)
         </h2>
         <Table
           columns={topCols}
           rows={data.top_users}
           rowKey={(r) => r.user_id}
-          empty={<EmptyState>활동 사용자 없음</EmptyState>}
+          empty={<EmptyState>상위 사용자 없음</EmptyState>}
         />
-      </section>
+      </Card>
 
-      <section
-        style={{
-          background: "#fff",
-          borderRadius: 10,
-          border: "1px solid #e5e7eb",
-        }}
-      >
-        <h2 style={{ margin: "1rem 1rem 0", fontSize: "1.05rem" }}>
+      <Card>
+        <h2 className="m-0 border-b border-border px-5 py-4 text-base font-semibold">
           Provider breakdown (24h)
         </h2>
         <Table
           columns={provCols}
           rows={data.provider_breakdown}
           rowKey={(r) => r.provider}
-          empty={<EmptyState>요청 없음</EmptyState>}
+          empty={<EmptyState>프로바이더 사용량 없음</EmptyState>}
         />
-      </section>
+      </Card>
     </div>
   );
 }

@@ -10,13 +10,14 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Enum, Index, String, func
+from sqlalchemy import DateTime, Enum, ForeignKey, Index, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
 
 if TYPE_CHECKING:
+    from app.models.organization import Organization
     from app.models.refresh_token import RefreshToken
 
 
@@ -35,6 +36,7 @@ class User(Base):
     __table_args__ = (
         Index("ix_users_status", "status"),
         Index("ix_users_role", "role"),
+        Index("ix_users_org_id", "org_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -45,6 +47,11 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
     role: Mapped[UserRole] = mapped_column(
         Enum(UserRole, name="user_role", native_enum=True),
         nullable=False,
@@ -67,6 +74,7 @@ class User(Base):
         onupdate=func.now(),
     )
 
+    organization: Mapped[Organization] = relationship("Organization")
     refresh_tokens: Mapped[list[RefreshToken]] = relationship(
         "RefreshToken",
         back_populates="user",

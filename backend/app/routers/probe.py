@@ -22,6 +22,7 @@ def _user_read(user) -> UserRead:
         id=user.id,
         email=user.email,
         name=user.name,
+        org_id=user.org_id,
         role=role,
         status=status_value,
         created_at=user.created_at,

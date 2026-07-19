@@ -12,6 +12,7 @@ from app.core.config import get_settings
 from app.core.database import SessionLocal
 from app.core.security import hash_password
 from app.models.user import UserRole, UserStatus
+from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.user_repository import UserRepository
 
 
@@ -33,10 +34,16 @@ def seed_admin() -> int:
 
     session = SessionLocal()
     try:
+        orgs = OrganizationRepository(session)
+        org = orgs.get_or_create_default(
+            name=getattr(settings, "default_org_name", None) or "Default Organization",
+        )
+        session.flush()
+
         users = UserRepository(session)
         existing = users.get_by_email(email)
         if existing is not None:
-            # Idempotent: leave password as-is; ensure admin + active.
+            # Idempotent: leave password as-is; ensure admin + active + org.
             changed = False
             if existing.role != UserRole.admin:
                 existing.role = UserRole.admin
@@ -44,6 +51,11 @@ def seed_admin() -> int:
             if existing.status != UserStatus.active:
                 existing.status = UserStatus.active
                 changed = True
+            if existing.org_id is None or existing.org_id != org.id:
+                # Only assign if missing; keep explicit reassignment if null-ish
+                if getattr(existing, "org_id", None) != org.id:
+                    existing.org_id = org.id
+                    changed = True
             if changed:
                 session.commit()
                 print(f"seed: updated existing user to admin/active: {email}")
@@ -55,11 +67,12 @@ def seed_admin() -> int:
             email=email,
             password_hash=hash_password(password),
             name=name,
+            org_id=org.id,
             role=UserRole.admin,
             status=UserStatus.active,
         )
         session.commit()
-        print(f"seed: created admin user id={user.id} email={email}")
+        print(f"seed: created admin user id={user.id} email={email} org={org.slug}")
         return 0
     except Exception as exc:  # noqa: BLE001 — CLI exit path
         session.rollback()

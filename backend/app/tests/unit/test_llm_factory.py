@@ -146,4 +146,20 @@ def test_unknown_provider_raises() -> None:
         gemini=_mock_provider("gemini"),
     )
     with pytest.raises(ValidationAppError):
-        factory.create("ollama")
+        factory.create("not-a-provider")
+
+
+@pytest.mark.unit
+def test_create_ollama() -> None:
+    ollama = _mock_provider("ollama")
+    factory = LlmFactory(
+        cfg=SimpleNamespace(
+            ai_primary_provider="openai",
+            ai_fallback_provider="gemini",
+            ai_fallback_enabled=False,
+        ),  # type: ignore[arg-type]
+        openai=_mock_provider("openai"),
+        gemini=_mock_provider("gemini"),
+        ollama=ollama,
+    )
+    assert factory.create("ollama") is ollama

@@ -16,6 +16,7 @@ class UserRead(BaseModel):
     id: uuid.UUID
     email: str
     name: str
+    org_id: uuid.UUID
     role: str
     status: str
     created_at: datetime
@@ -45,6 +46,7 @@ def to_user_read(user) -> UserRead:
         id=user.id,
         email=user.email,
         name=user.name,
+        org_id=user.org_id,
         role=role,
         status=status_value,
         created_at=user.created_at,

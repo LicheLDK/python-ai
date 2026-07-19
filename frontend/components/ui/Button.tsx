@@ -1,31 +1,18 @@
 "use client";
 
-import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { cn } from "@/lib/cn";
 
-const base: CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: "0.4rem",
-  padding: "0.5rem 0.9rem",
-  borderRadius: 6,
-  border: "1px solid transparent",
-  fontSize: "0.9rem",
-  fontWeight: 600,
-  cursor: "pointer",
-  lineHeight: 1.2,
-};
-
-const variants: Record<string, CSSProperties> = {
-  primary: { background: "#1a56db", color: "#fff" },
-  secondary: {
-    background: "#fff",
-    color: "#1f2937",
-    border: "1px solid #d1d5db",
-  },
-  danger: { background: "#b91c1c", color: "#fff" },
-  ghost: { background: "transparent", color: "#1f2937" },
-};
+const variants = {
+  primary:
+    "bg-brand text-white shadow-sm hover:bg-brand-hover focus-visible:ring-brand/40",
+  secondary:
+    "bg-white text-foreground border border-border hover:bg-slate-50 focus-visible:ring-brand/20",
+  danger:
+    "bg-danger text-white hover:bg-red-700 focus-visible:ring-danger/30",
+  ghost:
+    "bg-transparent text-muted hover:bg-slate-100 hover:text-foreground focus-visible:ring-brand/20",
+} as const;
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: keyof typeof variants;
@@ -35,21 +22,22 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 export function Button({
   variant = "primary",
   children,
-  style,
+  className,
   disabled,
+  type = "button",
   ...rest
 }: ButtonProps) {
   return (
     <button
-      type="button"
+      type={type}
       disabled={disabled}
-      style={{
-        ...base,
-        ...variants[variant],
-        opacity: disabled ? 0.55 : 1,
-        cursor: disabled ? "not-allowed" : "pointer",
-        ...style,
-      }}
+      className={cn(
+        "inline-flex items-center justify-center gap-2 rounded-xl px-3.5 py-2 text-sm font-semibold transition",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+        "disabled:cursor-not-allowed disabled:opacity-55",
+        variants[variant],
+        className,
+      )}
       {...rest}
     >
       {children}

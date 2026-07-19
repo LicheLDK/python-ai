@@ -13,7 +13,7 @@
 ## Stack
 
 FastAPI · Next.js · PostgreSQL · Redis · Docker · SQLAlchemy · Alembic · JWT  
-(예정: PaddleOCR · OpenAI · Gemini · Pipeline)
+PaddleOCR · OpenAI · Gemini · **Ollama** · Pipeline
 
 ## Architecture
 
@@ -28,8 +28,8 @@ Next.js (web) ──REST/JWT──► FastAPI (api)
 
 ## Status
 
-**Phase 0~12 complete — v1.0.0 ready** (staging compose, deploy runbook, release gate)  
-릴리즈: `CHANGELOG.md` · 게이트: `docs/RELEASE_GATE.md` · 태그 안내는 CHANGELOG 참고 (원할 때 `git tag v1.0.0`)
+**Phase 0~16** — v1.0.0 released; **Phase 13–16** (Ollama / S3 / RAG / soft-tenant) complete  
+릴리즈: `CHANGELOG.md` · 게이트: `docs/RELEASE_GATE.md` · 다음 후보: erasure APIs (`docs/BACKLOG_POST_V1.md`)
 
 ## Quick start
 

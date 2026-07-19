@@ -1,7 +1,7 @@
 # AI SaaS Framework — 사용법 (usage)
 
 구현 진행에 맞춰 이 문서를 갱신합니다.  
-현재 반영 범위: … **Phase 12 complete / v1.0.0 ready** (T-12.01 ~ T-12.05 — staging compose, deploy runbook, release gate, changelog, backlog)
+현재 반영 범위: … **Phase 16 complete** (T-16.01 ~ T-16.07 — soft multi-tenant) · Phase 15 RAG · Phase 14 S3 · Phase 13 Ollama · Phase 12 = v1.0.0 ready
 
 관련 명세: [docs/PRD.md](docs/PRD.md) · [docs/SDS.md](docs/SDS.md) · [docs/TASKS.md](docs/TASKS.md)
 
@@ -690,20 +690,100 @@ python -m app.scripts.seed_prompts
 # 또는 scripts/seed.sh (admin + prompts)
 ```
 
-Ollama (T-5.10): `OllamaAdapter` 스텁만 존재 — **v1.1**, `LlmFactory`에 미등록.
+Ollama (T-13.01 ~ T-13.04): `OllamaAdapter`가 `LlmFactory`에 등록됨 (`provider=ollama`).
+
+| Env | 기본 | 설명 |
+| --- | --- | --- |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama HTTP |
+| `OLLAMA_CHAT_MODEL` | `llama3.2` | chat 기본 모델 |
+| `OLLAMA_VISION_MODEL` | `llava` | vision 기본 모델 |
+| `OLLAMA_TIMEOUT_SECONDS` | `120` | 요청 타임아웃 |
+
+```powershell
+# (선택) Compose로 Ollama 기동
+docker compose --profile ollama up -d ollama
+docker exec aisaas-ollama ollama pull llama3.2
+# api/worker가 Compose 안이면:
+#   $env:OLLAMA_BASE_URL="http://ollama:11434"
+# 또는 호스트 Ollama: OLLAMA_BASE_URL=http://host.docker.internal:11434 (compose 기본)
+
+# primary를 ollama로
+# .env → AI_PRIMARY_PROVIDER=ollama
+
+cd backend
+python -m alembic upgrade head   # 0010 ai_provider + ollama
+python -m pytest app/tests/unit/test_ollama_adapter.py app/tests/unit/test_llm_factory.py -v
+```
+
+수동 chat 예:
+
+```json
+POST /api/v1/ai/chat
+{ "messages": [{"role":"user","content":"hi"}], "provider": "ollama" }
+```
+
+### RAG (T-15.01 ~ T-15.06)
+
+OCR 성공 후 문서 텍스트를 청킹·임베딩해 Postgres `document_chunks`(JSONB)에 저장하고, chat 시 top-k 인용을 붙입니다. 외부 벡터 DB는 사용하지 않습니다.
+
+| Env | 기본 | 설명 |
+| --- | --- | --- |
+| `EMBEDDING_PROVIDER` | `openai` | `openai` \| `hash` (오프라인/테스트) |
+| `EMBEDDING_MODEL` | `text-embedding-3-small` | OpenAI 임베딩 모델 |
+| `EMBEDDING_DIMENSIONS` | `1536` | 벡터 차원 (`hash`는 보통 64) |
+| `RAG_CHUNK_SIZE` / `RAG_CHUNK_OVERLAP` | `800` / `120` | 문자 윈도우 |
+| `RAG_TOP_K` | `5` | 기본 검색 개수 |
 
 ```powershell
 cd backend
-python -m pytest app/tests/api/test_ai.py app/tests/unit/test_ollama_adapter.py -v
+python -m alembic upgrade head   # 0011 document_chunks
+python -m pytest app/tests/unit/test_rag.py -v
+
+# 인덱싱 (succeeded OCR 필요)
+# POST /api/v1/rag/index  {"document_id":"..."} 또는 {"ocr_job_id":"..."}
+
+# 검색
+# POST /api/v1/rag/search  {"query":"...", "document_ids":["..."], "top_k":5}
+
+# RAG chat
+# POST /api/v1/ai/chat
+# {"messages":[{"role":"user","content":"요약해줘"}], "document_ids":["..."], "top_k":5}
 ```
 
-### LLM factory (T-5.04)
+로컬에서 API 키 없이 인덱싱 테스트: `.env`에 `EMBEDDING_PROVIDER=hash` + `EMBEDDING_DIMENSIONS=64`.
+
+### Soft multi-tenant (T-16.01 ~ T-16.06)
+
+단일 DB soft isolation: `organizations` + `users.org_id`. 문서/OCR 소유권은 기존 `owner_id`/`user_id` 유지.
+
+| Env | 기본 | 설명 |
+| --- | --- | --- |
+| `DEFAULT_ORG_NAME` | `Default Organization` | register/seed 시 기본 org 이름 |
+
+```powershell
+cd backend
+python -m alembic upgrade head   # 0012 organizations + users.org_id
+python -m pytest app/tests/unit/test_organization.py -v
+
+# 내 조직
+# GET  /api/v1/orgs/me
+# PATCH /api/v1/orgs/me  {"name":"Acme"}
+
+# Admin
+# GET/POST /api/v1/admin/orgs
+# PATCH /api/v1/admin/orgs/{id}  {"ai_rate_limit_max":30, "branding":{"logo_url":"..."}}
+# PATCH /api/v1/admin/users/{id} {"org_id":"..."}
+```
+
+Org AI quota가 설정되면 user 한도와 함께 이중 적용됩니다 (`scope=organization` 429).
+
+### LLM factory (T-5.04 / T-13.03)
 
 Env만으로 primary 전환 (코드 변경 없음):
 
 | Env | 기본 | 설명 |
 | --- | --- | --- |
-| `AI_PRIMARY_PROVIDER` | `openai` | `openai` \| `gemini` |
+| `AI_PRIMARY_PROVIDER` | `openai` | `openai` \| `gemini` \| `ollama` |
 | `AI_FALLBACK_PROVIDER` | `gemini` | fallback 대상 |
 | `AI_FALLBACK_ENABLED` | `false` | `true`면 primary `ProviderError` 시 fallback 1회 |
 
@@ -879,11 +959,43 @@ python -m pytest app/tests/api/test_documents.py -v
 
 커버: happy path, 415 MIME, 413 size, 404, ownership 403, admin 조회, empty 422.
 
-### Storage (T-3.02)
+### Storage (T-3.02 / T-14.01 ~ T-14.03)
 
 - Compose `api` 마운트: named volume `aisaas_storage` → `/data/storage` (`STORAGE_PATH`)
 - 키 형식: `documents/YYYY/MM/{document_uuid}/original.bin`
-- 단위 테스트: `python -m pytest app/tests/unit/test_local_storage.py -v`
+- 기본 백엔드: `STORAGE_BACKEND=local` (`LocalStorageAdapter`)
+- S3 호환: `STORAGE_BACKEND=s3` → `S3StorageAdapter` (boto3)
+
+| Env | 기본 | 설명 |
+| --- | --- | --- |
+| `STORAGE_BACKEND` | `local` | `local` \| `s3` |
+| `STORAGE_PATH` | `/data/storage` | local 루트 |
+| `S3_ENDPOINT_URL` | (빈값) | MinIO 등 커스텀 엔드포인트; AWS는 비움 |
+| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | — | 자격 증명 |
+| `S3_BUCKET` | — | 버킷명 (s3 필수) |
+| `S3_REGION` | `us-east-1` | 리전 |
+| `S3_FORCE_PATH_STYLE` | `true` | MinIO 권장 path-style |
+
+```powershell
+# (선택) MinIO 기동 + 버킷 생성
+docker compose --profile minio up -d minio minio-init
+
+# Compose api/worker용 .env 예
+# STORAGE_BACKEND=s3
+# S3_ENDPOINT_URL=http://minio:9000
+# S3_ACCESS_KEY_ID=minioadmin
+# S3_SECRET_ACCESS_KEY=minioadmin
+# S3_BUCKET=aisaas
+# S3_FORCE_PATH_STYLE=true
+
+# 하이브리드(호스트 uvicorn): S3_ENDPOINT_URL=http://localhost:9000
+
+cd backend
+python -m pytest app/tests/unit/test_s3_storage.py app/tests/unit/test_local_storage.py -v
+```
+
+- 단위 테스트(local): `python -m pytest app/tests/unit/test_local_storage.py -v`
+- 단위 테스트(S3 mock): `python -m pytest app/tests/unit/test_s3_storage.py -v`
 
 ---
 

@@ -20,6 +20,21 @@ class OcrJobRepository:
     def get_by_id(self, job_id: uuid.UUID) -> OcrJob | None:
         return self._session.get(OcrJob, job_id)
 
+    def get_latest_succeeded_for_document(
+        self,
+        document_id: uuid.UUID,
+    ) -> OcrJob | None:
+        stmt = (
+            select(OcrJob)
+            .where(
+                OcrJob.document_id == document_id,
+                OcrJob.status == OcrJobStatus.succeeded,
+            )
+            .order_by(OcrJob.finished_at.desc().nullslast(), OcrJob.created_at.desc())
+            .limit(1)
+        )
+        return self._session.scalars(stmt).first()
+
     def create(
         self,
         *,

@@ -21,6 +21,7 @@ from app.schemas.ai import (
     PromptPage,
     PromptRead,
     PromptUpdate,
+    RagCitationBlock,
     UsageBlock,
     VisionRequest,
     VisionResponse,
@@ -135,7 +136,7 @@ def chat(
     user: CurrentUser,
     service: AiService = Depends(get_ai_service),
 ) -> ChatResponse:
-    req, usage, result = service.chat(
+    req, usage, result, citations = service.chat(
         actor=user,
         messages=[m.model_dump() for m in body.messages],
         prompt_name=body.prompt_name,
@@ -145,6 +146,8 @@ def chat(
         model=body.model,
         temperature=body.temperature,
         max_tokens=body.max_tokens,
+        document_ids=body.document_ids,
+        top_k=body.top_k,
     )
     return ChatResponse(
         request_id=req.id,
@@ -157,6 +160,18 @@ def chat(
             latency_ms=usage.latency_ms,
             cost_estimate=float(usage.cost_estimate),
         ),
+        citations=[
+            RagCitationBlock(
+                chunk_id=c.chunk_id,
+                document_id=c.document_id,
+                ocr_job_id=c.ocr_job_id,
+                page=c.page,
+                chunk_index=c.chunk_index,
+                score=c.score,
+                snippet=c.snippet,
+            )
+            for c in citations
+        ],
     )
 
 
@@ -179,6 +194,8 @@ def chat_stream(
             model=body.model,
             temperature=body.temperature,
             max_tokens=body.max_tokens,
+            document_ids=body.document_ids,
+            top_k=body.top_k,
         )
 
     return StreamingResponse(_gen(), media_type="text/event-stream")

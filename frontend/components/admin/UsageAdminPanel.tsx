@@ -90,6 +90,7 @@ export function UsageAdminPanel() {
             <option value="">(all)</option>
             <option value="openai">openai</option>
             <option value="gemini">gemini</option>
+            <option value="ollama">ollama</option>
           </select>
         </label>
         <Input

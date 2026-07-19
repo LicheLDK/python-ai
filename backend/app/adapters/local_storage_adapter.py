@@ -67,5 +67,7 @@ class LocalStorageAdapter:
 
 
 def get_local_storage() -> StoragePort:
-    """Factory for DI (DocumentService will use this in T-3.03)."""
-    return LocalStorageAdapter()
+    """Backward-compatible alias — prefers ``get_storage()`` (T-14.02)."""
+    from app.adapters.storage_factory import get_storage
+
+    return get_storage()

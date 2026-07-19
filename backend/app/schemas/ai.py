@@ -57,10 +57,13 @@ class ChatRequest(BaseModel):
     prompt_name: str | None = None
     prompt_version: int | None = Field(default=None, ge=1)
     variables: dict[str, Any] | None = None
-    provider: Literal["openai", "gemini"] | None = None
+    provider: Literal["openai", "gemini", "ollama"] | None = None
     model: str | None = None
     temperature: float | None = Field(default=None, ge=0, le=2)
     max_tokens: int | None = Field(default=None, ge=1)
+    # RAG (T-15.06): when set, retrieve chunks and inject as system context
+    document_ids: list[uuid.UUID] | None = Field(default=None, min_length=1)
+    top_k: int | None = Field(default=None, ge=1, le=20)
 
 
 class UsageBlock(BaseModel):
@@ -75,12 +78,23 @@ class ChatMessageOut(BaseModel):
     content: str
 
 
+class RagCitationBlock(BaseModel):
+    chunk_id: uuid.UUID
+    document_id: uuid.UUID
+    ocr_job_id: uuid.UUID
+    page: int
+    chunk_index: int
+    score: float
+    snippet: str
+
+
 class ChatResponse(BaseModel):
     request_id: uuid.UUID
     provider: str
     model: str
     message: ChatMessageOut
     usage: UsageBlock
+    citations: list[RagCitationBlock] = Field(default_factory=list)
 
 
 class VisionRequest(BaseModel):
@@ -93,7 +107,7 @@ class VisionRequest(BaseModel):
     prompt_version: int | None = Field(default=None, ge=1)
     variables: dict[str, Any] | None = None
     instruction: str | None = None
-    provider: Literal["openai", "gemini"] | None = None
+    provider: Literal["openai", "gemini", "ollama"] | None = None
     model: str | None = None
     temperature: float | None = Field(default=None, ge=0, le=2)
     max_tokens: int | None = Field(default=None, ge=1)

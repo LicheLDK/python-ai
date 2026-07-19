@@ -14,6 +14,7 @@ REDIS_KEY_AUTH_DENY_JTI = "aisaas:auth:deny:{jti}"
 AI_RATE_LIMIT_MAX_REQUESTS = 60
 AI_RATE_LIMIT_WINDOW_SECONDS = 60
 REDIS_KEY_AI_RATE_USER = "aisaas:rl:ai:{user_id}"
+REDIS_KEY_AI_RATE_ORG = "aisaas:rl:ai:org:{org_id}"
 
 # Stats summary cache (SDS §10.19: aisaas:cache:stats:{user}:{day}, TTL 5m; T-7.05)
 REDIS_KEY_STATS_SUMMARY = "aisaas:cache:stats:{user_id}:{day}"

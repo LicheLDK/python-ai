@@ -1,27 +1,7 @@
 "use client";
 
-import type { CSSProperties, ReactNode } from "react";
-
-const tableStyle: CSSProperties = {
-  width: "100%",
-  borderCollapse: "collapse",
-  fontSize: "0.9rem",
-};
-
-const thStyle: CSSProperties = {
-  textAlign: "left",
-  padding: "0.65rem 0.75rem",
-  borderBottom: "2px solid #e5e7eb",
-  color: "#4b5563",
-  fontWeight: 600,
-  background: "#f9fafb",
-};
-
-const tdStyle: CSSProperties = {
-  padding: "0.65rem 0.75rem",
-  borderBottom: "1px solid #f3f4f6",
-  verticalAlign: "top",
-};
+import type { ReactNode } from "react";
+import { cn } from "@/lib/cn";
 
 export interface Column<T> {
   key: string;
@@ -35,23 +15,34 @@ interface TableProps<T> {
   rows: T[];
   rowKey: (row: T) => string;
   empty?: ReactNode;
+  className?: string;
 }
 
-export function Table<T>({ columns, rows, rowKey, empty }: TableProps<T>) {
+export function Table<T>({
+  columns,
+  rows,
+  rowKey,
+  empty,
+  className,
+}: TableProps<T>) {
   if (rows.length === 0) {
     return (
-      <div style={{ padding: "1.5rem", color: "#6b7280", textAlign: "center" }}>
+      <div className="px-6 py-10 text-center text-sm text-muted">
         {empty ?? "데이터가 없습니다."}
       </div>
     );
   }
   return (
-    <div style={{ overflowX: "auto" }}>
-      <table style={tableStyle}>
+    <div className={cn("overflow-x-auto", className)}>
+      <table className="w-full border-collapse text-sm">
         <thead>
-          <tr>
+          <tr className="border-b border-border bg-slate-50/80">
             {columns.map((c) => (
-              <th key={c.key} style={{ ...thStyle, width: c.width }}>
+              <th
+                key={c.key}
+                style={{ width: c.width }}
+                className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted"
+              >
                 {c.header}
               </th>
             ))}
@@ -59,9 +50,12 @@ export function Table<T>({ columns, rows, rowKey, empty }: TableProps<T>) {
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={rowKey(row)}>
+            <tr
+              key={rowKey(row)}
+              className="border-b border-slate-100 transition hover:bg-slate-50/70"
+            >
               {columns.map((c) => (
-                <td key={c.key} style={tdStyle}>
+                <td key={c.key} className="px-4 py-3.5 align-middle text-slate-700">
                   {c.render(row)}
                 </td>
               ))}

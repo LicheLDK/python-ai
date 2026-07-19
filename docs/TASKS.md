@@ -327,6 +327,69 @@ T-0.01 → T-0.02 → T-0.03 → T-0.04 → T-0.05 → T-0.06 → T-0.07
 
 ---
 
+## Phase 13 — Ollama Local LLM (v1.1)
+
+**Goal:** Wire Ollama as a first-class `LlmProviderPort` (B-1.1-OLLAMA).  
+**Phase exit:** `provider=ollama` works for chat/vision via factory + env; optional Compose profile.
+
+| ID | Task | Priority | Depends on | Deliverable | Exit criteria |
+| --- | --- | --- | --- | --- | --- |
+| **T-13.01** ✅ Done | Implement `OllamaAdapter` (chat / vision / health) | High | T-5.10, T-5.04 | httpx → Ollama `/api/chat` | Unit tests pass with MockTransport |
+| **T-13.02** ✅ Done | Alembic: add `ollama` to `ai_provider` enum | High | T-5.01 | Migration `0010_ai_provider_ollama` | Enum accepts ollama |
+| **T-13.03** ✅ Done | Register ollama in `LlmFactory` + Settings + request DTOs | High | T-13.01 | `SUPPORTED_PROVIDERS` includes ollama | `AI_PRIMARY_PROVIDER=ollama` resolves |
+| **T-13.04** ✅ Done | Compose optional `ollama` profile + env samples | Medium | T-13.03 | `docker compose --profile ollama` | Documented in usage.md |
+| **T-13.05** ✅ Done | Docs: TASKS / usage / CHANGELOG / backlog status | Low | T-13.03 | Docs updated | Phase 13 marked Done |
+
+---
+
+## Phase 14 — S3-compatible Storage (v1.1)
+
+**Goal:** Object storage behind the same `StoragePort` (B-P1-S3 / SDS ADR-014).  
+**Phase exit:** `STORAGE_BACKEND=s3` works for documents/OCR/AI/pipelines; default remains local.
+
+| ID | Task | Priority | Depends on | Deliverable | Exit criteria |
+| --- | --- | --- | --- | --- | --- |
+| **T-14.01** ✅ Done | Implement `S3StorageAdapter` (put/get/exists/delete + key layout) | High | T-3.02 | boto3 → S3/MinIO | Unit tests with mocked client |
+| **T-14.02** ✅ Done | `get_storage()` factory + Settings (`STORAGE_BACKEND`, `S3_*`) | High | T-14.01 | `get_local_storage()` delegates to factory | `local` default; `s3` selectable |
+| **T-14.03** ✅ Done | Compose optional `minio` profile + bucket init | Medium | T-14.02 | `docker compose --profile minio` | Documented in usage.md |
+| **T-14.04** ✅ Done | Docs: TASKS / usage / CHANGELOG / backlog status | Low | T-14.02 | Docs updated | Phase 14 marked Done |
+
+---
+
+## Phase 15 — RAG minimal (v1.1)
+
+**Goal:** Embeddings store + retrieval + citations behind ports (B-1.1-RAG / SDS ADR-016).  
+**Phase exit:** Index OCR text → search top-k → chat with `document_ids` returns citations.
+
+| ID | Task | Priority | Depends on | Deliverable | Exit criteria |
+| --- | --- | --- | --- | --- | --- |
+| **T-15.01** ✅ Done | `EmbeddingPort` + OpenAI / hash adapters | High | T-5.02 | `openai_embedding_adapter`, `hash_embedding_adapter` | Unit tests pass |
+| **T-15.02** ✅ Done | `get_embedding()` factory + Settings | High | T-15.01 | `EMBEDDING_PROVIDER` | openai \| hash selectable |
+| **T-15.03** ✅ Done | Chunking utility + cosine retrieve | High | T-15.01 | `rag_chunking.py` | Overlap chunks + ranking |
+| **T-15.04** ✅ Done | `document_chunks` table + repository | High | T-3.01, T-4.01 | Alembic `0011_rag_chunks` | JSONB embeddings persist |
+| **T-15.05** ✅ Done | `RagService` index + `/rag/index` `/rag/search` | High | T-15.04 | Router + service | Index from succeeded OCR |
+| **T-15.06** ✅ Done | Chat RAG: `document_ids` + citations | High | T-15.05, T-5.06 | ChatRequest/Response extended | Citations in response |
+| **T-15.07** ✅ Done | Docs: TASKS / usage / CHANGELOG / backlog | Low | T-15.06 | Docs updated | Phase 15 marked Done |
+
+---
+
+## Phase 16 — Soft multi-tenant (v1.2)
+
+**Goal:** Additive `organizations` + `users.org_id` with org AI quota (B-1.2-TENANT / ADR-015).  
+**Phase exit:** Default org backfill; `/orgs/me` + admin org CRUD; AI rate limit honors org override.
+
+| ID | Task | Priority | Depends on | Deliverable | Exit criteria |
+| --- | --- | --- | --- | --- | --- |
+| **T-16.01** ✅ Done | `organizations` table + Alembic `0012` | High | T-1.01 | Model + migration | Enum + branding JSONB |
+| **T-16.02** ✅ Done | `users.org_id` + default org backfill | High | T-16.01 | All users assigned | NOT NULL FK |
+| **T-16.03** ✅ Done | `OrganizationRepository` + `OrganizationService` | High | T-16.02 | CRUD + effective quota | Unit tests pass |
+| **T-16.04** ✅ Done | `/orgs/me` + `/admin/orgs` APIs | High | T-16.03 | Routers registered | Admin create/list/patch |
+| **T-16.05** ✅ Done | Org-level AI Redis quota in `AiService` | High | T-16.03, T-5.07 | Dual user+org counters | 429 with scope=organization |
+| **T-16.06** ✅ Done | `UserRead.org_id` + register/seed/admin patch | High | T-16.02 | Auth + admin wiring | New users join default org |
+| **T-16.07** ✅ Done | Docs: TASKS / usage / CHANGELOG / backlog | Low | T-16.06 | Docs updated | Phase 16 marked Done |
+
+---
+
 ## 3. Priority Index
 
 ### 3.1 High Priority (Critical Path / P0)

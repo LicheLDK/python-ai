@@ -33,6 +33,7 @@ from app.models.base import Base
 class AiProvider(str, enum.Enum):
     openai = "openai"
     gemini = "gemini"
+    ollama = "ollama"
 
 
 class AiRequestType(str, enum.Enum):

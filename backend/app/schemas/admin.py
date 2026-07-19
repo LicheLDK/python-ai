@@ -34,6 +34,7 @@ class AdminUserUpdateRequest(BaseModel):
     role: AdminUserRole | None = None
     status: AdminUserStatus | None = None
     name: str | None = Field(default=None, min_length=1, max_length=120)
+    org_id: uuid.UUID | None = None
 
 
 UserAdminPage = Page[UserAdminRead]

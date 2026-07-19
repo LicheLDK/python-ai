@@ -7,6 +7,7 @@ export interface UserRead {
   id: string;
   email: string;
   name: string;
+  org_id: string;
   role: UserRole;
   status: UserStatus;
   created_at: string;

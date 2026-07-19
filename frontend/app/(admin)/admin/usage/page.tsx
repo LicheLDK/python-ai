@@ -1,12 +1,13 @@
 import { UsageAdminPanel } from "@/components/admin/UsageAdminPanel";
+import { PageHeader } from "@/components/ui/Card";
 
 export default function AdminUsagePage() {
   return (
     <div>
-      <h1 style={{ marginTop: 0 }}>Admin · AI usage</h1>
-      <p style={{ color: "#4b5563", marginTop: 0 }}>
-        provider / user 필터 · token · cost
-      </p>
+      <PageHeader
+        title="Admin · AI usage"
+        description="토큰 · 프로바이더 · 사용자별 사용량"
+      />
       <UsageAdminPanel />
     </div>
   );

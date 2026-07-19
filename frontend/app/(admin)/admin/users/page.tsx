@@ -1,12 +1,13 @@
 import { UsersAdminPanel } from "@/components/admin/UsersAdminPanel";
+import { PageHeader } from "@/components/ui/Card";
 
 export default function AdminUsersPage() {
   return (
     <div>
-      <h1 style={{ marginTop: 0 }}>Admin · Users</h1>
-      <p style={{ color: "#4b5563", marginTop: 0 }}>
-        검색 · role/status/name 변경 (audit 기록)
-      </p>
+      <PageHeader
+        title="Admin · Users"
+        description="검색 · 역할/상태 변경 · 감사 로그"
+      />
       <UsersAdminPanel />
     </div>
   );

@@ -34,6 +34,7 @@ from app.exceptions.auth import ForbiddenError, TokenError, UnauthorizedError
 from app.exceptions.domain import ConflictError, RateLimitError
 from app.models.refresh_token import RefreshToken
 from app.models.user import User, UserRole, UserStatus
+from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.refresh_token_repository import RefreshTokenRepository
 from app.repositories.user_repository import UserRepository
 
@@ -65,6 +66,7 @@ class AuthService:
         self._redis = redis_client
         self._users = users or UserRepository(session)
         self._refresh_tokens = refresh_tokens or RefreshTokenRepository(session)
+        self._orgs = OrganizationRepository(session)
         self._audit = audit or AuditService(session)
 
     def register(self, *, email: str, password: str, name: str) -> User:
@@ -72,10 +74,14 @@ class AuthService:
         if self._users.get_by_email(normalized) is not None:
             raise ConflictError("Email already registered")
 
+        org = self._orgs.get_or_create_default(
+            name=getattr(settings, "default_org_name", None) or "Default Organization",
+        )
         user = self._users.create(
             email=normalized,
             password_hash=hash_password(password),
             name=name.strip(),
+            org_id=org.id,
             role=UserRole.user,
             status=UserStatus.active,
         )

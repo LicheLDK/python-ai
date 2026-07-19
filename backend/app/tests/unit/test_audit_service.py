@@ -12,6 +12,7 @@ from app.core.request_context import reset_request_id, set_request_id
 from app.core.security import hash_password
 from app.models.audit import AuditLog
 from app.models.user import UserRole, UserStatus
+from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.user_repository import UserRepository
 from app.services.audit_service import AuditService
 
@@ -21,11 +22,13 @@ pytestmark = [pytest.mark.unit]
 def test_audit_service_write_persists_row() -> None:
     session = SessionLocal()
     try:
+        org = OrganizationRepository(session).get_or_create_default()
         users = UserRepository(session)
         actor = users.create(
             email=f"audit-actor-{uuid.uuid4().hex[:10]}@example.com",
             password_hash=hash_password("AuditPass1!"),
             name="Auditor",
+            org_id=org.id,
             role=UserRole.admin,
             status=UserStatus.active,
         )

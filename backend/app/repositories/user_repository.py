@@ -28,6 +28,7 @@ class UserRepository:
         email: str,
         password_hash: str,
         name: str,
+        org_id: uuid.UUID,
         role: UserRole = UserRole.user,
         status: UserStatus = UserStatus.active,
     ) -> User:
@@ -36,6 +37,7 @@ class UserRepository:
             email=email.lower(),
             password_hash=password_hash,
             name=name,
+            org_id=org_id,
             role=role,
             status=status,
         )
@@ -91,6 +93,7 @@ class UserRepository:
         name: str | None = None,
         role: UserRole | None = None,
         status: UserStatus | None = None,
+        org_id: uuid.UUID | None = None,
     ) -> User:
         if name is not None:
             user.name = name
@@ -98,5 +101,7 @@ class UserRepository:
             user.role = role
         if status is not None:
             user.status = status
+        if org_id is not None:
+            user.org_id = org_id
         self._session.flush()
         return user

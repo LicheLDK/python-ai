@@ -1,6 +1,7 @@
 """Adapter ports / protocols (SDS ADR-012, ADR-014).
 
-T-3.02 StoragePort · T-4.03 ImagePreprocessPort · T-4.04 OcrEnginePort · T-5.02 LlmProviderPort.
+T-3.02 StoragePort · T-4.03 ImagePreprocessPort · T-4.04 OcrEnginePort ·
+T-5.02 LlmProviderPort · T-15.01 EmbeddingPort.
 """
 
 from __future__ import annotations
@@ -160,4 +161,26 @@ class ImagePreprocessPort(Protocol):
         options: PreprocessOptions | None = None,
     ) -> bytes:
         """Return processed image as PNG bytes."""
+        ...
+
+
+@runtime_checkable
+class EmbeddingPort(Protocol):
+    """Text embedding adapter (T-15.01 / B-1.1-RAG)."""
+
+    @property
+    def name(self) -> str:
+        """Provider id: ``openai`` | ``hash`` | …"""
+        ...
+
+    @property
+    def model(self) -> str:
+        ...
+
+    @property
+    def dimensions(self) -> int:
+        ...
+
+    def embed(self, texts: Sequence[str]) -> list[list[float]]:
+        """Return one embedding vector per input text (same order)."""
         ...

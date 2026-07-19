@@ -1,4 +1,4 @@
-"""LLM provider factory (T-5.04 / SDS ADR-012).
+"""LLM provider factory (T-5.04 / T-13.03 / SDS ADR-012).
 
 Selection is env-driven (``AI_PRIMARY_PROVIDER``, ``AI_FALLBACK_*``).
 Services depend on ``LlmProviderPort`` / this factory — never on concrete SDKs.
@@ -10,6 +10,7 @@ from functools import lru_cache
 from typing import Sequence
 
 from app.adapters.gemini_adapter import GeminiAdapter
+from app.adapters.ollama_adapter import OllamaAdapter
 from app.adapters.openai_adapter import OpenAiAdapter
 from app.adapters.ports import (
     ChatMessage,
@@ -22,7 +23,7 @@ from app.adapters.ports import (
 from app.core.config import Settings, settings
 from app.exceptions.domain import ProviderError, ValidationAppError
 
-SUPPORTED_PROVIDERS = frozenset({"openai", "gemini"})
+SUPPORTED_PROVIDERS = frozenset({"openai", "gemini", "ollama"})
 
 
 class FallbackLlmProvider:
@@ -79,10 +80,12 @@ class LlmFactory:
         cfg: Settings | None = None,
         openai: LlmProviderPort | None = None,
         gemini: LlmProviderPort | None = None,
+        ollama: LlmProviderPort | None = None,
     ) -> None:
         self._settings = cfg or settings
         self._openai = openai
         self._gemini = gemini
+        self._ollama = ollama
 
     def create(self, name: str) -> LlmProviderPort:
         key = name.strip().lower()
@@ -93,7 +96,9 @@ class LlmFactory:
             )
         if key == "openai":
             return self._openai if self._openai is not None else OpenAiAdapter()
-        return self._gemini if self._gemini is not None else GeminiAdapter()
+        if key == "gemini":
+            return self._gemini if self._gemini is not None else GeminiAdapter()
+        return self._ollama if self._ollama is not None else OllamaAdapter()
 
     def resolve(self, requested: str | None = None) -> LlmProviderPort:
         """Return primary (or requested) provider.

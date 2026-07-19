@@ -1,12 +1,13 @@
 import { AuditAdminPanel } from "@/components/admin/AuditAdminPanel";
+import { PageHeader } from "@/components/ui/Card";
 
 export default function AdminAuditPage() {
   return (
     <div>
-      <h1 style={{ marginTop: 0 }}>Admin · Audit</h1>
-      <p style={{ color: "#4b5563", marginTop: 0 }}>
-        action 필터 · admin patch 등 감사 로그
-      </p>
+      <PageHeader
+        title="Admin · Audit"
+        description="관리자 액션 · 로그인 실패 등"
+      />
       <AuditAdminPanel />
     </div>
   );

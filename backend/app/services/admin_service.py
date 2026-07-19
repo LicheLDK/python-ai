@@ -85,6 +85,7 @@ class AdminService:
         name: str | None = None,
         role: str | None = None,
         status: str | None = None,
+        org_id: uuid.UUID | None = None,
         ip: str | None = None,
     ) -> User:
         target = self.get_user(user_id)
@@ -96,7 +97,19 @@ class AdminService:
         role_enum = self._parse_role(role) if role is not None else None
         status_enum = self._parse_status(status) if status is not None else None
 
-        if cleaned_name is None and role_enum is None and status_enum is None:
+        if org_id is not None:
+            from app.repositories.organization_repository import OrganizationRepository
+
+            org = OrganizationRepository(self._session).get_by_id(org_id)
+            if org is None:
+                raise NotFoundError("Organization not found")
+
+        if (
+            cleaned_name is None
+            and role_enum is None
+            and status_enum is None
+            and org_id is None
+        ):
             return target
 
         before = {
@@ -107,6 +120,7 @@ class AdminService:
                 if isinstance(target.status, UserStatus)
                 else str(target.status)
             ),
+            "org_id": str(target.org_id),
         }
 
         updated = self._users.apply_admin_update(
@@ -114,6 +128,7 @@ class AdminService:
             name=cleaned_name,
             role=role_enum,
             status=status_enum,
+            org_id=org_id,
         )
 
         after = {
@@ -124,6 +139,7 @@ class AdminService:
                 if isinstance(updated.status, UserStatus)
                 else str(updated.status)
             ),
+            "org_id": str(updated.org_id),
         }
         changes = {k: {"from": before[k], "to": after[k]} for k in before if before[k] != after[k]}
 

@@ -135,25 +135,14 @@ export function OcrConsole() {
   if (loading) return <LoadingState />;
 
   return (
-    <div style={{ display: "grid", gap: "1rem" }}>
-      <div
-        style={{
-          display: "flex",
-          gap: "0.75rem",
-          flexWrap: "wrap",
-          alignItems: "end",
-          background: "#fff",
-          padding: "1rem",
-          borderRadius: 8,
-          border: "1px solid #e5e7eb",
-        }}
-      >
-        <label style={{ display: "grid", gap: "0.35rem", minWidth: 260 }}>
-          <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>Document</span>
+    <div className="grid gap-4">
+      <div className="flex flex-wrap items-end gap-3 rounded-[var(--radius-card)] border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+        <label className="grid min-w-[260px] gap-1.5">
+          <span className="text-sm font-semibold text-slate-700">Document</span>
           <select
             value={documentId}
             onChange={(e) => setDocumentId(e.target.value)}
-            style={{ padding: "0.5rem", borderRadius: 6 }}
+            className="rounded-xl border border-border bg-white px-3 py-2.5 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
           >
             {docs.length === 0 ? (
               <option value="">문서 없음 — Documents에서 업로드</option>
@@ -171,13 +160,7 @@ export function OcrConsole() {
         </Button>
       </div>
       {error ? <ErrorState message={error} /> : null}
-      <div
-        style={{
-          background: "#fff",
-          borderRadius: 8,
-          border: "1px solid #e5e7eb",
-        }}
-      >
+      <div className="overflow-hidden rounded-[var(--radius-card)] border border-border bg-card shadow-[var(--shadow-card)]">
         <Table
           columns={columns}
           rows={jobs}
@@ -186,24 +169,12 @@ export function OcrConsole() {
         />
       </div>
       {results ? (
-        <div
-          style={{
-            background: "#fff",
-            borderRadius: 8,
-            border: "1px solid #e5e7eb",
-            padding: "1rem",
-          }}
-        >
-          <h3 style={{ marginTop: 0 }}>Results</h3>
+        <div className="rounded-[var(--radius-card)] border border-border bg-card p-5 shadow-[var(--shadow-card)]">
+          <h3 className="mt-0 mb-3 text-base font-semibold">Results</h3>
           {results.pages.map((p) => (
             <pre
               key={p.page}
-              style={{
-                whiteSpace: "pre-wrap",
-                background: "#f9fafb",
-                padding: "0.75rem",
-                borderRadius: 6,
-              }}
+              className="mb-3 whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-sm text-slate-700 last:mb-0"
             >
               {`[page ${p.page}]\n${p.text || "(empty)"}`}
             </pre>

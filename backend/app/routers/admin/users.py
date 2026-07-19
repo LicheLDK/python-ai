@@ -68,6 +68,7 @@ def patch_user(
         name=body.name,
         role=body.role.value if body.role is not None else None,
         status=body.status.value if body.status is not None else None,
+        org_id=body.org_id,
         ip=client_ip(request),
     )
     return to_user_read(updated)

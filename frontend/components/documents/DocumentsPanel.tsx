@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Trash2, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { Card, PageHeader } from "@/components/ui/Card";
 import { Table, type Column } from "@/components/ui/Table";
 import {
   EmptyState,
@@ -12,10 +14,12 @@ import {
 import { ApiError } from "@/services/http";
 import * as documentsApi from "@/services/documents";
 import type { DocumentRead } from "@/types";
+import { cn } from "@/lib/cn";
 
 export function DocumentUploader({ onUploaded }: { onUploaded: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
 
   async function onChange(file: File | null) {
     if (!file) return;
@@ -32,28 +36,40 @@ export function DocumentUploader({ onUploaded }: { onUploaded: () => void }) {
   }
 
   return (
-    <div style={{ display: "grid", gap: "0.5rem" }}>
+    <div className="grid gap-3">
       <label
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "0.75rem",
-          padding: "0.85rem 1rem",
-          border: "1px dashed #9ca3af",
-          borderRadius: 8,
-          background: "#fff",
-          cursor: "pointer",
-          width: "fit-content",
+        className={cn(
+          "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-6 py-10 text-center transition",
+          dragOver
+            ? "border-brand bg-brand-soft"
+            : "border-indigo-200 bg-indigo-50/40 hover:border-brand hover:bg-brand-soft/60",
+          busy && "pointer-events-none opacity-60",
+        )}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          void onChange(e.dataTransfer.files?.[0] ?? null);
         }}
       >
-        <span style={{ fontWeight: 600 }}>
-          {busy ? "업로드 중…" : "파일 선택 (jpeg/png/webp/pdf)"}
-        </span>
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-brand shadow-sm">
+          <UploadCloud className="h-6 w-6" />
+        </div>
+        <div className="text-sm font-semibold text-slate-800">
+          {busy
+            ? "업로드 중…"
+            : "파일을 끌어다 놓거나 클릭하여 업로드"}
+        </div>
+        <div className="text-xs text-muted">jpeg / png / webp / pdf</div>
         <input
           type="file"
           accept="image/jpeg,image/png,image/webp,application/pdf"
           disabled={busy}
-          style={{ display: "none" }}
+          className="hidden"
           onChange={(e) => onChange(e.target.files?.[0] ?? null)}
         />
       </label>
@@ -88,12 +104,14 @@ export function DocumentsPanel() {
     {
       key: "filename",
       header: "Filename",
-      render: (r) => r.filename,
+      render: (r) => (
+        <span className="font-medium text-foreground">{r.filename}</span>
+      ),
     },
     {
       key: "mime",
       header: "MIME",
-      render: (r) => r.mime_type,
+      render: (r) => <span className="text-muted">{r.mime_type}</span>,
     },
     {
       key: "size",
@@ -108,14 +126,21 @@ export function DocumentsPanel() {
     {
       key: "created",
       header: "Created",
-      render: (r) => new Date(r.created_at).toLocaleString(),
+      render: (r) => (
+        <span className="text-muted">
+          {new Date(r.created_at).toLocaleString()}
+        </span>
+      ),
     },
     {
       key: "actions",
       header: "",
+      width: "72px",
       render: (r) => (
         <Button
-          variant="danger"
+          variant="ghost"
+          className="!px-2 text-danger hover:bg-danger-soft"
+          title="삭제"
           onClick={async () => {
             if (!confirm("이 문서를 삭제할까요?")) return;
             try {
@@ -126,32 +151,32 @@ export function DocumentsPanel() {
             }
           }}
         >
-          삭제
+          <Trash2 className="h-4 w-4" />
         </Button>
       ),
     },
   ];
 
   return (
-    <div style={{ display: "grid", gap: "1rem" }}>
-      <DocumentUploader onUploaded={() => void reload()} />
+    <div>
+      <PageHeader
+        title="Documents"
+        description="업로드 · 목록 · 삭제 (jpeg/png/webp/pdf)"
+      />
+      <div className="mb-5">
+        <DocumentUploader onUploaded={() => void reload()} />
+      </div>
       {loading ? <LoadingState /> : null}
       {error ? <ErrorState message={error} /> : null}
       {!loading && !error ? (
-        <div
-          style={{
-            background: "#fff",
-            borderRadius: 8,
-            border: "1px solid #e5e7eb",
-          }}
-        >
+        <Card>
           <Table
             columns={columns}
             rows={rows}
             rowKey={(r) => r.id}
             empty={<EmptyState>업로드된 문서가 없습니다.</EmptyState>}
           />
-        </div>
+        </Card>
       ) : null}
     </div>
   );

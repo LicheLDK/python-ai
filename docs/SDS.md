@@ -195,13 +195,13 @@
 | **Decision** | v1 구현: 로컬/바인드 볼륨. `StoragePort` 인터페이스로 S3 호환 교체 예약. 실제 S3는 v1.1+ |
 | **Consequences** | `documents.storage_key`는 provider-agnostic 경로 키 |
 
-### ADR-015 — No Soft Multi-Tenant in v1
+### ADR-015 — Soft Multi-Tenant (v1.2)
 
 | Field | Content |
 | --- | --- |
-| **Status** | Accepted |
-| **Decision** | `org_id` 컬럼·테넌트 격리 없음. 단일 배포 = 단일 논리 테넌트 |
-| **Consequences** | v1.2에서 테넌트 도입 시 additive migration |
+| **Status** | Superseded for v1.2+ (was: No Soft Multi-Tenant in v1) |
+| **Decision** | v1: `org_id` 없음. **v1.2 (Phase 16):** additive `organizations` + `users.org_id`; 리소스 테이블은 간접 소속(user FK). Org AI quota + branding JSONB. |
+| **Consequences** | 스키마/DB per-tenant 격리는 계속 Non-Goal. Org-scoped admin·리소스 `org_id` 컬럼은 후속. |
 
 ### ADR-016 — RAG Deferred to v1.1
 

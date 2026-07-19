@@ -3,46 +3,23 @@ import {
   PromptBrowser,
   VisionPanel,
 } from "@/components/ai/AiPanels";
+import { Card, PageHeader } from "@/components/ui/Card";
 
 export default function AiPage() {
   return (
-    <div style={{ display: "grid", gap: "1.5rem" }}>
-      <div>
-        <h1 style={{ marginTop: 0 }}>AI</h1>
-        <p style={{ color: "#4b5563", marginTop: 0 }}>
-          Chat · Vision · Prompt browser
-        </p>
+    <div>
+      <PageHeader title="AI" description="Chat · Vision · Prompt browser" />
+      <div className="grid gap-4">
+        <Card className="p-5">
+          <ChatPanel />
+        </Card>
+        <Card className="p-5">
+          <VisionPanel />
+        </Card>
+        <Card className="p-5">
+          <PromptBrowser />
+        </Card>
       </div>
-      <section
-        style={{
-          background: "#fff",
-          borderRadius: 8,
-          border: "1px solid #e5e7eb",
-          padding: "1rem",
-        }}
-      >
-        <ChatPanel />
-      </section>
-      <section
-        style={{
-          background: "#fff",
-          borderRadius: 8,
-          border: "1px solid #e5e7eb",
-          padding: "1rem",
-        }}
-      >
-        <VisionPanel />
-      </section>
-      <section
-        style={{
-          background: "#fff",
-          borderRadius: 8,
-          border: "1px solid #e5e7eb",
-          padding: "1rem",
-        }}
-      >
-        <PromptBrowser />
-      </section>
     </div>
   );
 }
