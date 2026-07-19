@@ -1,0 +1,140 @@
+# =============================================================================
+# AI SaaS Framework — Docker Compose
+# Tasks: T-0.03 … T-0.09, T-3.02 (storage), T-4.02 (worker)
+# Spec: docs/SDS.md §12.1 | docs/TASKS.md | usage.md
+# =============================================================================
+# Services:
+#   - postgres (PostgreSQL 16)
+#   - redis (Redis 7)
+#   - api (FastAPI) + storage_data volume at STORAGE_PATH
+#   - worker (ARQ; same image as api, different command)
+#   - web (Next.js shell)
+# =============================================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: aisaas-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aisaas
+      POSTGRES_PASSWORD: aisaas
+      POSTGRES_DB: ai_saas
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - aisaas_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aisaas -d ai_saas"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: aisaas-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    networks:
+      - aisaas_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    command: ["redis-server", "--appendonly", "yes"]
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    container_name: aisaas-api
+    restart: unless-stopped
+    env_file:
+      - .env.example
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+asyncpg://aisaas:aisaas@postgres:5432/ai_saas
+      REDIS_URL: redis://redis:6379/0
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      STORAGE_PATH: /data/storage
+    ports:
+      - "8000:8000"
+    volumes:
+      - storage_data:/data/storage
+    networks:
+      - aisaas_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    container_name: aisaas-worker
+    restart: unless-stopped
+    command: ["arq", "app.workers.settings.WorkerSettings"]
+    env_file:
+      - .env.example
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+asyncpg://aisaas:aisaas@postgres:5432/ai_saas
+      REDIS_URL: redis://redis:6379/0
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      STORAGE_PATH: /data/storage
+    volumes:
+      - storage_data:/data/storage
+    networks:
+      - aisaas_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    container_name: aisaas-web
+    restart: unless-stopped
+    environment:
+      # Browser calls the API via the host-published port.
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    networks:
+      - aisaas_net
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+    name: aisaas_pgdata
+  redisdata:
+    name: aisaas_redisdata
+  storage_data:
+    name: aisaas_storage
+
+networks:
+  aisaas_net:
+    name: aisaas_net
+    driver: bridge
