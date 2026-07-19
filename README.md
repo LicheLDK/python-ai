@@ -5,6 +5,7 @@
 | 문서 | 설명 |
 | --- | --- |
 | [usage.md](usage.md) | **사용법 / 테스트** (구현과 함께 갱신) |
+| [usage.md §4](usage.md#4-frontend--웹-활용-가이드) | **웹(Frontend) 활용** — 화면·흐름·API-only 기능 |
 | [docs/PRD.md](docs/PRD.md) | 제품 요구사항 |
 | [docs/SDS.md](docs/SDS.md) | 소프트웨어 설계 |
 | [docs/TASKS.md](docs/TASKS.md) | 구현 태스크 |
@@ -41,11 +42,11 @@ docker compose up --build
 
 | URL | 설명 |
 | --- | --- |
-| http://localhost:3000 | Frontend shell (`web`) |
+| http://localhost:3000 | Frontend — 활용 가이드는 [usage.md §4](usage.md#4-frontend--웹-활용-가이드) |
 | http://localhost:8000 | API (`/`, `/health`, `/ready`, `/docs`) |
 | `localhost:5433` | Postgres (host) |
 | `localhost:6379` | Redis |
-| Compose `worker` | ARQ (Redis 큐 소비; no-op smoke job) |
+| Compose `worker` | ARQ (OCR / pipeline / erasure 큐 소비) |
 
 코드 변경 후 API/worker 재빌드:
 

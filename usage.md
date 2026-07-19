@@ -223,13 +223,17 @@ docker compose down
 
 ---
 
-## 4. Frontend
+## 4. Frontend — 웹 활용 가이드
 
-- URL: http://localhost:3000
-- Next.js App Router — 로그인·Documents·OCR·AI·Pipelines·Dashboard·Admin UI 포함 (Phase 8~10)
-- API는 `NEXT_PUBLIC_API_BASE_URL`(기본 `http://localhost:8000`)로 호출
+웹은 **브라우저 콘솔**입니다. 비즈니스는 FastAPI가 처리하고, Next.js는 로그인·기능 화면·Admin을 제공합니다.
 
-로컬(호스트) FE만 실행할 때는 §3.1.5와 동일합니다.
+| 항목 | 값 |
+| --- | --- |
+| URL | http://localhost:3000 |
+| API | `NEXT_PUBLIC_API_BASE_URL` (기본 `http://localhost:8000`) |
+| 스택 | Next.js App Router · Tailwind · JWT(access memory) + refresh HttpOnly cookie |
+
+로컬(호스트) FE:
 
 ```powershell
 cd frontend
@@ -238,7 +242,383 @@ npm run dev
 # http://localhost:3000
 ```
 
-Compose로 FE까지 올릴 때는 §3 `docker compose up` 의 `web` 서비스를 사용합니다.
+Compose: §3 `docker compose up` 의 `web` 서비스. 하이브리드: §3.1.5.
+
+### 4.1 역할과 진입점
+
+| 역할 | 진입 | 사이드바 |
+| --- | --- | --- |
+| 일반 사용자 (`user`) | `/login` → `/dashboard` | Dashboard · Documents · OCR · AI · Pipelines |
+| 관리자 (`admin`) | 동일 로그인 후 `/admin` | Users · AI usage · OCR history · Audit · Prompts |
+
+시드 관리자(기본): `admin@example.com` / `ChangeMeAdmin1!`  
+(`SEED_ADMIN_*` · `scripts/seed.sh` 또는 `python -m app.scripts.seed_admin`)
+
+회원가입: `/register` → 기본 Organization에 자동 소속.
+
+### 4.2 권장 사용 흐름 (일반 사용자)
+
+한 번에 “문서 → 텍스트 → AI”까지 가려면 **Worker(ARQ)가 떠 있어야** OCR/파이프라인이 완료됩니다.
+
+```mermaid
+flowchart LR
+  A[Login] --> B[Documents 업로드]
+  B --> C[OCR 잡 생성]
+  C --> D[AI Chat / Vision]
+  B --> E[Pipelines 원클릭]
+  E --> D
+  D --> F[Dashboard 통계]
+```
+
+| 순서 | 화면 | 무엇을 하나 |
+| --- | --- | --- |
+| 1 | `/documents` | 이미지/PDF 업로드 · 목록 · soft-delete |
+| 2 | `/ocr` | 문서 선택 → OCR job · 결과/상태 확인 |
+| 3 | `/ai` | Chat · Vision(문서/OCR 연동) · Prompt 목록 |
+| 4 | `/pipelines` | 문서 하나로 preprocess→OCR→AI→persist |
+| 5 | `/dashboard` | 본인 사용량·잡 요약 KPI |
+
+**실무적으로**
+
+- **문서만 보관** → Documents만 사용
+- **스캔/계약서 텍스트화** → Documents → OCR
+- **요약·질의** → OCR 후 AI Chat/Vision (또는 Pipeline 한 방)
+- **데모/온보딩** → Pipeline으로 end-to-end 한 번에 보여 주기
+
+### 4.3 메뉴별 구체 사용법
+
+로그인 후 왼쪽 사이드바 메뉴 기준입니다. 공통으로 하단 **Logout**, 본인 email·role이 표시됩니다. Admin은 하단 **Admin console**로 `/admin`에 들어가며, Admin 구역에서는 **Back to app**으로 `/dashboard`에 돌아갑니다.
+
+상태 배지 색(대략): 초록 `succeeded`/`active`/`uploaded` · 파랑 `queued`/`running` · 빨강 `failed`/`cancelled` · 그 외 회색.
+
+> 아래 이미지는 UI 레이아웃 참고용 목업입니다 (`docs/images/web/`, WebP · 가로 1280px). 실제 화면 문구·데이터는 환경에 따라 다를 수 있습니다.
+
+---
+
+#### 4.3.1 Login (`/login`)
+
+![Login 화면](docs/images/web/web-login.webp)
+
+**화면:** Email · Password · **로그인** · 회원가입 링크
+
+**사용 절차**
+
+1. http://localhost:3000/login 접속
+2. **Email**, **Password** 입력
+3. **로그인** 클릭 (처리 중: **로그인 중…**)
+4. 성공 → `/dashboard`로 이동
+
+**시드 관리자 예:** `admin@example.com` / `ChangeMeAdmin1!`
+
+**실패 시:** 빨간 오류 배너 (예: `로그인에 실패했습니다.` 또는 API 메시지). inactive 계정은 로그인 불가.
+
+---
+
+#### 4.3.2 Register (`/register`)
+
+**화면:** Name · Email · Password(최소 8자) · **회원가입** · 로그인 링크
+
+**사용 절차**
+
+1. `/register` 접속
+2. **Name**, **Email**, **Password** 입력
+3. **회원가입** 클릭 (처리 중: **가입 중…**)
+4. 가입 성공 후 자동 로그인 → `/dashboard`
+5. 기본 Organization(`default`)에 자동 소속
+
+**실패 시:** 중복 email 등 → 오류 배너 (`회원가입에 실패했습니다.` 등).
+
+---
+
+#### 4.3.3 Dashboard (`/dashboard`)
+
+![Dashboard 화면](docs/images/web/web-dashboard.webp)
+
+**화면**
+
+- KPI 4칸: **OCR today** · **AI today** · **Tokens today** · **Error rate**
+- **Personal daily stats (14d)** 차트 (OCR 막대 + AI 영역)
+- **Recent OCR jobs** (최대 5건) + **View all →** (`/ocr`)
+
+**사용 절차**
+
+1. 사이드바 **Dashboard** 클릭
+2. 오늘 사용량·오류율 확인
+3. 차트에 일별 추이 확인 (데이터 없으면: `아직 집계된 일별 통계가 없습니다. (materialize cron 이후 표시)`)
+4. 최근 OCR 행을 보거나 **View all →**로 OCR 화면 이동
+
+**선행:** 로그인. 일별 차트는 Worker의 stats materialize cron이 돈 뒤 채워집니다.  
+**실패 시:** `대시보드 로드 실패` / `요약 데이터가 없습니다.`
+
+---
+
+#### 4.3.4 Documents (`/documents`)
+
+![Documents 화면](docs/images/web/web-documents.webp)
+
+**화면**
+
+- 업로드 존: `파일을 끌어다 놓거나 클릭하여 업로드` · 허용 `jpeg / png / webp / pdf`
+- 테이블: Filename · MIME · Size · Status · Created · 삭제(휴지통)
+
+**업로드**
+
+1. **Documents** 메뉴 이동
+2. 파일을 영역에 **드래그**하거나 **클릭**해 선택
+3. **업로드 중…** 후 목록에 행 추가 (Status 예: `uploaded`)
+4. 이후 OCR / Vision / Pipelines에서 이 문서를 선택
+
+**삭제 (soft-delete)**
+
+1. 행 오른쪽 휴지통 클릭 (`title="삭제"`)
+2. 확인 창: `이 문서를 삭제할까요?` → 확인
+3. 목록에서 사라짐 (storage 하드 삭제는 Erasure API · §4.4)
+
+**실패 시:** `업로드 실패` · `목록 조회 실패` · `삭제 실패`  
+**빈 목록:** `업로드된 문서가 없습니다.`
+
+---
+
+#### 4.3.5 OCR (`/ocr`)
+
+![OCR 화면](docs/images/web/web-ocr.webp)
+
+**선행:** Documents에 문서 ≥1 · **Worker(ARQ) 가동** (없으면 `queued`에서 멈출 수 있음)
+
+**화면**
+
+- **Document** 셀렉트 · **OCR 시작**
+- 작업 테이블: Job · Document · Status · Error
+- **Results:** 성공 시 페이지별 `[page N]` + 텍스트
+
+**사용 절차**
+
+1. Documents에서 파일 업로드
+2. **OCR** 메뉴 이동
+3. **Document**에서 파일 선택 (문서가 있으면 첫 항목 자동 선택)
+4. **OCR 시작** 클릭 (처리 중: **시작 중…**)
+5. 테이블 Status가 `queued` → `running` → `succeeded`로 폴링 갱신
+6. `succeeded`면 하단 **Results**에 추출 텍스트 표시
+7. (선택) 과거 Job ID(앞 8자) 클릭 → 해당 잡 재조회·결과 표시
+
+**문서 없을 때:** 셀렉트에 `문서 없음 — Documents에서 업로드` · **OCR 시작** 비활성  
+**실패 시:** Status `failed` + Error 컬럼 · `OCR 시작 실패` · `결과 조회 실패`  
+**빈 이력:** `OCR 작업이 없습니다.`
+
+---
+
+#### 4.3.6 AI (`/ai`)
+
+![AI 화면](docs/images/web/web-ai.webp)
+
+한 페이지에 **Chat** · **Vision** · **Active prompts** 카드가 세로로 배치됩니다.  
+**선행:** 로그인 · LLM API 키 또는 Ollama 설정(`.env`). Vision은 Documents에 문서 ≥1.
+
+##### Chat
+
+1. **Chat** 카드에서 (선택) `prompt_name (optional)`에 활성 프롬프트 이름 입력
+2. `Ask something…`에 질문 입력
+3. **Send** 클릭 (처리 중: `…`)
+4. `user:` / `assistant:` 대화가 쌓임
+5. 하단에 `tokens in/out · latency · est. $` 확인
+6. 이어서 질문하면 이전 메시지가 컨텍스트로 유지됨
+
+빈 입력은 전송되지 않습니다. 실패 시: `채팅 실패`.
+
+##### Vision
+
+1. **Vision** 카드에서 **Document** 선택
+2. (선택) `prompt_name (optional)` 입력
+3. **Vision 실행** 클릭 (처리 중: **분석 중…**)
+4. 결과 영역(텍스트/JSON)과 usage 라인 확인
+
+문서가 없으면 버튼 비활성. 실패 시: `Vision 실패`.
+
+##### Active prompts (read-only)
+
+1. **Active prompts** 테이블에서 **Name** 클릭
+2. 하단에 template 본문 표시
+3. Chat/Vision의 `prompt_name`에 같은 이름을 넣어 재사용
+
+프롬프트 생성·활성화는 **Admin → Prompts**에서만 가능합니다.  
+실패 시: `프롬프트 조회 실패`.
+
+---
+
+#### 4.3.7 Pipelines (`/pipelines`)
+
+![Pipelines 화면](docs/images/web/web-pipelines.webp)
+
+**선행:** Documents에 문서 ≥1 · **Worker** · (권장) Admin에서 `ocr_analysis` 등 프롬프트 활성
+
+**화면**
+
+- **Document** 셀렉트 · **AI prompt** 입력(기본 `ocr_analysis`) · **파이프라인 실행**
+- 이력 테이블: Run · Status · Document
+- **Stages:** preprocess → OCR → AI → persist 단계별 상태·에러·output_ref
+
+**사용 절차**
+
+1. 문서 업로드
+2. **Pipelines** 메뉴 이동
+3. **Document** 선택
+4. **AI prompt** 확인/수정 (기본값 `ocr_analysis`)
+5. **파이프라인 실행** 클릭 (처리 중: **시작 중…**)
+6. Status 폴링: `queued` → `running` → `succeeded` (또는 `failed`)
+7. 하단 **Stages**에서 단계별 badge·오류·`output_ref` JSON 확인
+8. (선택) 과거 **Run** ID 클릭 → 해당 Stages 다시 보기
+
+한 번의 실행으로 전처리·OCR·AI 분석·저장까지 이어집니다. OCR만 필요하면 §4.3.5가 더 가볍습니다.  
+실패 시: `파이프라인 시작 실패` · stage에 빨간 `(error)`. 빈 이력: `실행 이력이 없습니다.`
+
+---
+
+#### 4.3.8 Admin home (`/admin`)
+
+![Admin dashboard 화면](docs/images/web/web-admin.webp)
+
+**선행:** `role === admin` (아니면 `/dashboard`로 리다이렉트)
+
+**화면:** Users · OCR 24h · AI 24h · Error rate 24h KPI · Top users · Provider breakdown
+
+**사용 절차**
+
+1. 사이드바 하단 **Admin console** 클릭
+2. 최근 24시간 KPI·상위 사용자·프로바이더별 요청/토큰/비용 확인
+3. 세부 조사는 Users / AI usage / OCR history / Audit / Prompts로 이동
+
+실패 시: `대시보드 로드 실패` · `데이터 없음` 등.
+
+---
+
+#### 4.3.9 Admin · Users (`/admin/users`)
+
+**화면:** Search(`email / name`) · **Refresh** · 테이블(Email · Name · Role · Status · **Edit**)  
+**Edit user** 모달: Name · Role(`user`/`admin`) · Status(`active`/`inactive`) · **Cancel** / **Save**
+
+**사용 절차**
+
+1. **Users** 메뉴 이동
+2. (선택) Search에 email/name 일부 입력 후 **Refresh**
+3. 대상 행 **Edit** 클릭
+4. Name / Role / Status 변경
+5. **Save** → 목록 반영 · 감사 로그 기록
+
+실패 시: `목록 조회 실패` · `저장 실패`. 빈 목록: `사용자가 없습니다.`  
+Org 이동(`org_id`)은 웹 UI 없음 → API §4.4.
+
+---
+
+#### 4.3.10 Admin · AI usage (`/admin/usage`)
+
+**화면:** Provider 필터(`all`/`openai`/`gemini`/`ollama`) · User ID · **Apply** · 사용량 테이블
+
+**사용 절차**
+
+1. **AI usage** 이동
+2. (선택) Provider·User ID(uuid) 지정
+3. **Apply**
+4. Created · Provider · Model · Type · Status · Tokens · Cost · User 확인
+
+실패 시: `조회 실패`. 빈 목록: `사용량 기록이 없습니다.`
+
+---
+
+#### 4.3.11 Admin · OCR history (`/admin/ocr`)
+
+**화면:** Status 필터 · **Apply** · Job 테이블 · Job 클릭 시 상세 모달
+
+**사용 절차**
+
+1. **OCR history** 이동
+2. (선택) Status 선택 후 **Apply**
+3. **Job** ID 클릭 → 모달에서 `[page N]` OCR 텍스트 확인
+
+실패 시: `조회 실패` · `상세 조회 실패`. 빈 목록: `OCR 이력이 없습니다.`
+
+---
+
+#### 4.3.12 Admin · Audit (`/admin/audit`)
+
+**화면:** Action filter · **Apply** · Created · Action · Resource · Actor · Payload
+
+**사용 절차**
+
+1. **Audit** 이동
+2. (선택) Action filter 입력 후 **Apply**
+3. 로그인 실패·관리자 변경·erasure 요청 등 로그 검색
+
+실패 시: `조회 실패`. 빈 목록: `감사 로그가 없습니다.`
+
+---
+
+#### 4.3.13 Admin · Prompts (`/admin/prompts`)
+
+**화면:** Create 폼(Name · Template · **Activate immediately**) · **Create** · 목록(**Activate** / **New version**)
+
+**새 프롬프트**
+
+1. **Name**, **Template** 입력
+2. **Activate immediately** 체크 유지/해제
+3. **Create**
+
+**활성화 / 새 버전**
+
+1. 비활성 행에서 **Activate**
+2. **New version** → 브라우저 prompt에 새 템플릿 입력
+
+Pipeline 기본값 `ocr_analysis`는 시드(`python -m app.scripts.seed_prompts` 또는 `scripts/seed.sh`) 권장.  
+Chat/Vision의 `prompt_name`에 **Name**을 그대로 사용.  
+실패 시: `생성 실패` · `활성화 실패` · `버전 생성 실패`.
+
+---
+
+#### 4.3.14 권장 end-to-end 체크리스트
+
+**일반 사용자**
+
+1. Login/Register  
+2. Documents → 샘플 PDF/이미지 업로드  
+3. OCR → **OCR 시작** → Results 확인 **또는** Pipelines → **파이프라인 실행** → Stages 확인  
+4. AI → Chat 질문 / Vision 실행  
+5. Dashboard에서 오늘 수치 확인  
+
+**관리자**
+
+1. admin Login → Admin console  
+2. Prompts에서 분석용 프롬프트 준비  
+3. Users / AI usage / OCR history / Audit로 모니터링  
+
+### 4.4 웹 UI에 아직 없는 기능 (API로 사용)
+
+Phase 13~17 백엔드 기능 중 **전용 화면이 없는 것**은 Swagger(`http://localhost:8000/docs`) 또는 curl로 호출합니다.
+
+| 기능 | API | 웹 상태 |
+| --- | --- | --- |
+| RAG index / search / chat citations | `/api/v1/rag/*`, `/ai/chat` + `document_ids` | UI 미구현 |
+| Organization me / admin orgs | `/api/v1/orgs/me`, `/admin/orgs` | UI 미구현 (`UserRead.org_id`만 타입 반영) |
+| Account/document erasure | `DELETE /users/me/data`, `/admin/erasure-jobs` | UI 미구현 |
+| MinIO / Ollama 기동 | Compose profile | 웹 설정 화면 없음 · `.env`로 |
+
+→ FE 확장 후보: RAG 패널, Org 설정, “내 데이터 삭제” 버튼, Admin Org/Erasure 콘솔.
+
+### 4.5 운영·데모 팁
+
+1. **Worker 없이**도 로그인·Documents·Admin·동기 Chat은 가능. OCR/Pipeline은 Worker 필수.
+2. **Ollama 로컬 LLM**: Compose `--profile ollama` 후 `.env`의 `AI_PRIMARY_PROVIDER=ollama`.
+3. **S3/MinIO**: `--profile minio` + `STORAGE_BACKEND=s3` — Documents 업로드가 동일 UI로 object storage에 적재.
+4. CORS: FE origin을 `CORS_ORIGINS`에 포함 (`http://localhost:3000`).
+5. API 스키마·수동 호출: http://localhost:8000/docs
+
+### 4.6 문서 위치
+
+| 궁금한 것 | 문서 |
+| --- | --- |
+| **웹을 어떻게 쓰나 (이 절)** | [usage.md §4](usage.md) · 화면 목업 `docs/images/web/` (WebP) |
+| 기동·시드·하이브리드 | [usage.md](usage.md) §1–3 |
+| API 상세 | [usage.md](usage.md) §5 · OpenAPI `/docs` |
+| 제품 범위 | [docs/PRD.md](docs/PRD.md) |
+| 화면/모듈 설계 | [docs/SDS.md](docs/SDS.md) |
 
 ---
 
